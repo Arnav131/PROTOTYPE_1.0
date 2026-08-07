@@ -1,0 +1,70 @@
+{
+  "version": "1.0.0",
+  "engine_mode": "simple",
+  "feature_columns": [
+    "ambient_temp_mean",
+    "ambient_temp_max",
+    "ambient_temp_min",
+    "ambient_temp_std",
+    "humidity_mean",
+    "humidity_max",
+    "humidity_min",
+    "humidity_std",
+    "vibration_rms_mean",
+    "vibration_rms_max",
+    "vibration_rms_min",
+    "vibration_rms_std",
+    "gauge_width_mean",
+    "gauge_width_max",
+    "gauge_width_min",
+    "gauge_width_std",
+    "gauge_deviation_mean",
+    "gauge_deviation_max",
+    "temperature_risk_flag",
+    "vibration_risk_flag",
+    "gauge_risk_flag",
+    "humidity_risk_flag"
+  ],
+  "window_size": 16,
+  "standard_gauge_mm": 1676.0,
+  "risk_model": {
+    "file": "anomaly_model.pkl",
+    "type": "pytorch_mlp",
+    "input_size": 22,
+    "num_classes": 3,
+    "class_names": [
+      "none",
+      "warning",
+      "critical"
+    ],
+    "thresholds": {
+      "none_max": 0.65,
+      "warning_max": 0.85,
+      "critical_min": 0.85
+    }
+  },
+  "fault_model": {
+    "file": "fault_model.pkl",
+    "type": "pytorch_mlp",
+    "input_size": 22,
+    "num_classes": 7,
+    "class_names": [
+      "normal",
+      "thermal_buckle",
+      "rail_fracture",
+      "gauge_widening",
+      "ballast_washout",
+      "rockfall",
+      "snow_ice"
+    ]
+  },
+  "training_info": {
+    "train_samples": 200000,
+    "test_samples": 50000,
+    "risk_best_val_acc": 0.9486799836158752,
+    "fault_best_val_acc": 0.9241999983787537,
+    "risk_train_time_s": 161.7,
+    "fault_train_time_s": 185.0,
+    "trained_on": "Google Colab T4 GPU"
+  }
+}

@@ -20,5 +20,6 @@ urlpatterns = [
     path('tickets/', include('tickets.urls')),
     path('map/', include('map_view.urls')),
     path('api/', include('map_view.api_urls')),
+    path('api/predict/', include('sensors.api_urls')),
 ]
 
