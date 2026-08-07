@@ -48,3 +48,9 @@ def navigation(request):
         'nav_items': nav_items,
         'is_controller': request.user.is_authenticated and request.user.is_staff
     }
+
+def project_meta(request):
+    return {
+        "PROJECT_NAME": "Rakshak",
+        "PROJECT_VERSION": "1.0",
+    }
