@@ -1,4 +1,3 @@
-# backend/sensors/api_views.py
 """
 Prediction API — JSON endpoints for the AI inference pipeline.
 
@@ -19,6 +18,8 @@ from django.http import JsonResponse
 from django.utils import timezone
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_GET, require_POST
+from django.contrib.auth.decorators import login_required  # ← Add if needed
+from django.views.decorators.cache import never_cache      # ← Add for sensitive endpoints
 
 from ai_models import get_pipeline
 
@@ -29,11 +30,14 @@ _alert_counter = 0
 
 
 def _generate_alert_code():
-    """Generate a unique alert code."""
+    """Generate a unique, collision-resistant alert code."""
     global _alert_counter
     _alert_counter += 1
     now = timezone.now()
-    return f"ALT-{now.strftime('%Y%m%d')}-{_alert_counter:04d}"
+    # Add process ID for multi-worker safety
+    import os
+    pid = os.getpid() % 10000
+    return f"ALT-{now.strftime('%Y%m%d%H%M%S')}-{pid:04d}-{_alert_counter:04d}"
 
 
 def _validate_sensor_input(data):
@@ -129,6 +133,7 @@ def _maybe_create_alert(prediction, track_section_id=None, sensor_id=None):
 
 @csrf_exempt
 @require_POST
+@never_cache  # ← Don't cache predictions
 def api_predict(request):
     """
     POST /api/predict/
@@ -150,7 +155,8 @@ def api_predict(request):
             "success": true,
             "prediction": { ... pipeline output ... },
             "alert_created": false,
-            "alert_id": null
+            "alert_id": null,
+            "timestamp": "2024-01-01T00:00:00Z"
         }
     """
     # Parse JSON body
@@ -202,10 +208,12 @@ def api_predict(request):
         "prediction": prediction,
         "alert_created": alert_code is not None,
         "alert_id": alert_code,
+        "timestamp": timezone.now().isoformat(),  # ← Add timestamp
     })
 
 
 @require_GET
+@never_cache  # ← Don't cache health checks
 def api_predict_health(request):
     """
     GET /api/predict/health/
@@ -219,7 +227,8 @@ def api_predict_health(request):
             "fault_model_loaded": true,
             "config_loaded": true,
             "model_version": "1.0.0",
-            "mode": "pytorch_mlp"
+            "mode": "pytorch_mlp",
+            "timestamp": "2024-01-01T00:00:00Z"
         }
     """
     pipeline = get_pipeline()
@@ -232,13 +241,17 @@ def api_predict_health(request):
             "model_version": "n/a",
             "mode": "none",
             "error": "Pipeline failed to initialize",
+            "timestamp": timezone.now().isoformat(),
         })
 
-    return JsonResponse(pipeline.health_check())
+    health_data = pipeline.health_check()
+    health_data["timestamp"] = timezone.now().isoformat()  # ← Add timestamp
+    return JsonResponse(health_data)
 
 
 @csrf_exempt
 @require_POST
+@never_cache  # ← Don't cache batch predictions
 def api_predict_batch(request):
     """
     POST /api/predict/batch/
@@ -258,7 +271,8 @@ def api_predict_batch(request):
         {
             "success": true,
             "count": 2,
-            "predictions": [ ... ]
+            "predictions": [ ... ],
+            "timestamp": "2024-01-01T00:00:00Z"
         }
     """
     try:
@@ -320,6 +334,7 @@ def api_predict_batch(request):
             results.append(entry)
 
         except Exception as e:
+            logger.error(f"Batch prediction error at index {i}: {e}")  # ← Log with index
             results.append({
                 "index": i,
                 "success": False,
@@ -330,4 +345,5 @@ def api_predict_batch(request):
         "success": True,
         "count": len(results),
         "predictions": results,
+        "timestamp": timezone.now().isoformat(),  # ← Add timestamp
     })
