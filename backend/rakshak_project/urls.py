@@ -9,10 +9,12 @@ Routes:
   /map/        → Railway Map page
   /api/        → JSON API endpoints (map data)
 """
-
+from django.contrib import admin
 from django.urls import path, include
 
 urlpatterns = [
+    path('admin/', admin.site.urls),
+    path('accounts/', include('django.contrib.auth.urls')),
     path('', include('sensors.urls')),
     path('alerts/', include('alerts.urls')),
     path('tickets/', include('tickets.urls')),
