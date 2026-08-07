@@ -71,7 +71,7 @@ logger = logging.getLogger("rakshak.agents.anomaly")
 
 class AnomalyDetectionAgent(BaseAgent):
     """
-    3-tier anomaly detection pipeline.
+    Anomaly detection agent backed by SimpleRakshakInferencePipeline.
 
     Receives SensorValidatedEvents from the ingestion agent,
     runs predictions through the AI Integration Layer, and
@@ -138,7 +138,9 @@ class AnomalyDetectionAgent(BaseAgent):
             5. Return structured response
 
         Args:
-            data: SensorValidatedEvent or dict with sensor values
+            data: SensorValidatedEvent or dict with sensor values:
+                  {ambient_temp, humidity, vibration_rms, gauge_width,
+                   sensor_id?, track_section_id?, reading_id?}
 
         Returns:
             Dict with anomaly detection results and optional alert_id
@@ -307,7 +309,7 @@ class AnomalyDetectionAgent(BaseAgent):
         elif score >= 0.7:
             severity = Alert.Severity.WARNING
         else:
-            severity = Alert.Severity.INFO
+            severity = "info"
 
         fault_info = ""
         if response.fault_type != "unknown":
@@ -324,9 +326,9 @@ class AnomalyDetectionAgent(BaseAgent):
                 track_section_id=track_section_id,
                 sensor_id=sensor_id,
                 trigger_reading_id=reading_id,
-                alert_type=Alert.AlertType.ANOMALY,
+                alert_type="anomaly",
                 severity=severity,
-                title=f"Anomaly Detected (score: {score:.2f})",
+                title=f"Anomaly Detected: {fault_type} (score: {score:.2f})",
                 description=(
                     f"AI anomaly detection triggered.\n"
                     f"Score: {score:.4f}\n"
@@ -335,7 +337,7 @@ class AnomalyDetectionAgent(BaseAgent):
                 ),
                 confidence_score=Decimal(str(round(score, 4))),
                 generated_at=timezone.now(),
-                generated_by=Alert.GeneratedBy.ML_MODEL,
+                generated_by="ml_model",
             )
 
         self.log_event(

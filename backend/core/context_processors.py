@@ -1,15 +1,3 @@
-# backend/core/context_processors.py
-"""
-Shared context processors injected into every template.
-
-These provide navigation items and project metadata so that
-base.html can render the nav bar and footer without each view
-having to repeat the same context.
-"""
-
-from django.utils import timezone
-
-
 def navigation(request):
     """Inject navigation items with active-page detection."""
     nav_items = [
@@ -22,13 +10,13 @@ def navigation(request):
         {
             'name': 'Alerts',
             'url': '/alerts/',
-            'icon': 'alerts',
+            'icon': 'alerts',  # Was 'alert' before, make sure this matches your icon names
             'description': 'Active Alerts',
         },
         {
             'name': 'Tickets',
             'url': '/tickets/',
-            'icon': 'tickets',
+            'icon': 'tickets',  # Was 'ticket' before
             'description': 'Maintenance Tickets',
         },
         {
@@ -38,16 +26,25 @@ def navigation(request):
             'description': 'Railway Network',
         },
     ]
+    
+    # Add admin link for staff users
+    if request.user.is_authenticated and request.user.is_staff:
+        nav_items.append({
+            'name': 'Admin',
+            'url': '/admin/',
+            'icon': 'admin',
+            'description': 'Control & Audit',
+        })
+    
+    # Detect active page
     current_path = request.path
     for item in nav_items:
-        item['active'] = current_path == item['url']
-    return {'nav_items': nav_items}
-
-
-def project_meta(request):
-    """Inject project-wide metadata."""
+        item['active'] = (
+            current_path == item['url'] or 
+            (item['url'] == '/admin/' and current_path.startswith('/admin/'))
+        )
+    
     return {
-        'project_name': 'RAKSHAK',
-        'project_subtitle': 'Railway Operations Control Center',
-        'server_time': timezone.now(),
+        'nav_items': nav_items,
+        'is_controller': request.user.is_authenticated and request.user.is_staff
     }

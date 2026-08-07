@@ -8,12 +8,16 @@ This configuration uses:
   - Static files from frontend/static/
   - No authentication, no middleware beyond essentials
 """
-
 import os
 from pathlib import Path
+from dotenv import load_dotenv
+
 
 # Build paths relative to the backend/ directory
 BASE_DIR = Path(__file__).resolve().parent.parent
+
+# Load environment variables from project root
+load_dotenv(BASE_DIR.parent / '.env')
 
 # SECURITY WARNING: keep the secret key used in production secret!
 # This is a prototype key — will be replaced with env-var in production.
@@ -28,7 +32,11 @@ ALLOWED_HOSTS = ['*']
 # Application definition
 # ---------------------------------------------------------------------------
 INSTALLED_APPS = [
+    'django.contrib.admin',
+    'django.contrib.auth',
     'django.contrib.contenttypes',
+    'django.contrib.sessions',
+    'django.contrib.messages',
     'django.contrib.staticfiles',
     # Rakshak apps
     'core',
@@ -44,8 +52,13 @@ INSTALLED_APPS = [
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
+    'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
+    'django.middleware.csrf.CsrfViewMiddleware',
+    'django.contrib.auth.middleware.AuthenticationMiddleware',
+    'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
+    'railway.middleware.CurrentUserMiddleware',
 ]
 
 ROOT_URLCONF = 'rakshak_project.urls'
@@ -65,7 +78,8 @@ TEMPLATES = [
                 'django.template.context_processors.debug',
                 'django.template.context_processors.request',
                 'django.template.context_processors.static',
-                # Rakshak shared context (navigation, project meta)
+                'django.contrib.auth.context_processors.auth',
+                'django.contrib.messages.context_processors.messages',
                 'core.context_processors.navigation',
                 'core.context_processors.project_meta',
             ],
@@ -76,12 +90,16 @@ TEMPLATES = [
 WSGI_APPLICATION = 'rakshak_project.wsgi.application'
 
 # ---------------------------------------------------------------------------
-# Database — SQLite for prototype (no Postgres in Phase 1)
+# Database — PostgreSQL for development
 # ---------------------------------------------------------------------------
 DATABASES = {
     'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
+        'ENGINE': 'django.db.backends.postgresql',
+        'NAME': os.environ.get('DB_NAME', 'rakshak'),
+        'USER': os.environ.get('DB_USER', 'postgres'),
+        'PASSWORD': os.environ.get('DB_PASSWORD', ''),
+        'HOST': os.environ.get('DB_HOST', 'localhost'),
+        'PORT': os.environ.get('DB_PORT', '5432'),
     }
 }
 
