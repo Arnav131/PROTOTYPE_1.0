@@ -11,7 +11,7 @@ Renders the Operations Control Center dashboard with:
 All data is sourced from the railway.models database via ORM queries.
 No mock data dependencies.
 """
-
+from django.contrib.auth.decorators import login_required   
 from django.db.models import Count, Q
 from django.shortcuts import render
 from django.utils import timezone
@@ -245,7 +245,7 @@ def _build_sensor_trends():
 
     return trends
 
-
+@login_required
 def dashboard(request):
     """Render the main dashboard page."""
     track_section_count = TrackSection.objects.count()
@@ -256,7 +256,6 @@ def dashboard(request):
         'kpi': _build_kpi(alert_qs, track_section_count),
         'track_sections': _build_track_sections(),
         'recent_readings': _build_recent_readings(),
-        # Serialize trend data for Chart.js (consumed via json_script in template)
         'sensor_trends_json': _build_sensor_trends(),
     }
     return render(request, 'dashboard.html', context)
