@@ -107,6 +107,11 @@ python manage.py migrate
 
 Run the following commands **in the given order**:
 
+
+```bash
+cd backend
+
+```
 ```bash
 python manage.py seed_master_data
 ```
