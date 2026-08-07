@@ -1,389 +1,570 @@
 // frontend/static/js/map.js
 //
-// Rakshak — Railway Map Initialization (Database-Driven)
-// Fetches data from Django API endpoints and renders:
-//   - Station markers with color-coded status
-//   - Rail route polylines
-//   - Ticket markers with priority colors
-//   - Alert markers with severity indicators
-//   - Interactive popup cards with details
+// RAKSHAK — India-Wide Dark Charcoal Engineering Railway Control Map
+// Base Railway Geometry: OpenStreetMap (Open Geographic Data Fallback)
+// Operational Overlays: RAKSHAK Predictive Monitoring System
 
 'use strict';
 
-// ================================================================
-// STATUS COLOR PALETTE — shared across all marker types
-// ================================================================
-var STATUS_COLORS = {
-    healthy:  '#10b981',
-    warning:  '#f59e0b',
-    critical: '#ef4444',
-};
+var rakshakMap = null;
+var mainRailwayGeoJsonLayer = null;
+var glowLayerGroup = null;
+var stationLayerGroup = null;
 
-var STATUS_GLOW = {
-    healthy:  'rgba(16,185,129,0.4)',
-    warning:  'rgba(245,158,11,0.4)',
-    critical: 'rgba(239,68,68,0.5)',
-};
+var g_railwayMajorData = null;
+var g_railwayFullData = null;
+var g_stationData = null;
+var g_zonesData = [];
+var g_monitoringData = null;
 
-// Ticket priority → marker color
-var TICKET_COLORS = {
-    critical: '#ef4444',   // Red
-    high:     '#f59e0b',   // Amber
-    medium:   '#3b82f6',   // Blue
-    low:      '#10b981',   // Green
-};
-
-// Ticket status → marker color (overrides priority for active tickets)
-var TICKET_STATUS_COLORS = {
-    open:        '#3b82f6',   // Blue — Active
-    assigned:    '#3b82f6',   // Blue — Active
-    in_progress: '#f59e0b',   // Yellow — In progress
-    scheduled:   '#f59e0b',   // Yellow — Scheduled
-    resolved:    '#10b981',   // Green — Healthy
-};
-
-// Alert severity → marker color
-var ALERT_SEVERITY_COLORS = {
-    critical: '#ef4444',
-    warning:  '#f59e0b',
-    info:     '#3b82f6',
-};
-
-
-// ================================================================
-// MAIN MAP INITIALIZATION
-// ================================================================
+var g_selectedFeatureId = null;
 
 /**
- * Initialize the Leaflet railway map by fetching data from APIs.
- * Called from map.html after DOM load.
+ * Main Initialization for Rakshak Control Map
  */
-function initRailwayMapFromAPI() {
+function initRakshakControlMap() {
     var mapContainer = document.getElementById('railway-map');
     if (!mapContainer) return;
 
     // ----------------------------------------------------------------
-    // Create map centered on India
+    // 1. Initialize Leaflet Map with Canvas Vector Renderer
     // ----------------------------------------------------------------
-    var map = L.map('railway-map', {
-        center: [22.5, 79.0],
+    var canvasRenderer = L.canvas({ padding: 0.5, tolerance: 5 });
+
+    rakshakMap = L.map('railway-map', {
+        center: [20.5937, 78.9629], // India Center
         zoom: 5,
         minZoom: 4,
-        maxZoom: 14,
-        zoomControl: true,
+        maxZoom: 17,
+        zoomControl: false,
+        renderer: canvasRenderer,
+        attributionControl: false // Custom attribution added below
     });
 
-    // Light tile layer — CartoDB Positron for a clean, light-themed map
-    L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
-        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OSM</a> &copy; <a href="https://carto.com/">CARTO</a>',
+    // Dark Matter basemap — no competing bright roads or labels
+    L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
         subdomains: 'abcd',
-        maxZoom: 20,
-    }).addTo(map);
+        maxZoom: 19
+    }).addTo(rakshakMap);
+
+    // Custom OpenStreetMap & RAKSHAK attribution
+    L.control.attribution({
+        position: 'bottomright',
+        prefix: 'Base Geometry: <a href="https://www.openstreetmap.org/copyright" target="_blank" style="color:#64748b">OpenStreetMap</a> (Open Geographic Data) | RAKSHAK Systems'
+    }).addTo(rakshakMap);
+
+    // Layer groups for clean z-index ordering
+    glowLayerGroup = L.layerGroup().addTo(rakshakMap);
+    stationLayerGroup = L.layerGroup().addTo(rakshakMap);
+
+    // Fit map to India Geographic Bounds immediately
+    var indiaBounds = L.latLngBounds([6.5, 68.0], [35.5, 97.5]);
+    rakshakMap.fitBounds(indiaBounds, { padding: [10, 10] });
+
+    // Setup map control listeners (+, -, Fit India)
+    _setupMapControls(indiaBounds);
+
+    // Setup filter listeners
+    _setupFilters();
+
+    // Zoom-dependent rendering listener
+    rakshakMap.on('zoomend', function() {
+        _updateLayerVisibility();
+    });
 
     // ----------------------------------------------------------------
-    // Inject custom CSS for map elements
-    // ----------------------------------------------------------------
-    _injectMapStyles();
-
-    // ----------------------------------------------------------------
-    // Fetch all data in parallel, then render layers
+    // 2. Fetch Datasets (36,000+ Real OSM Lines + Stations + RAKSHAK)
     // ----------------------------------------------------------------
     Promise.all([
-        fetch('/api/stations/').then(function(r) { return r.json(); }),
-        fetch('/api/routes/').then(function(r) { return r.json(); }),
-        fetch('/api/tickets/').then(function(r) { return r.json(); }),
-        fetch('/api/alerts/').then(function(r) { return r.json(); }),
-        fetch('/api/summary/').then(function(r) { return r.json(); }),
+        fetch('/static/data/railway/india_railways_major.geojson').then(function(r) { return r.json(); }),
+        fetch('/static/data/railway/india_railways_full.geojson').then(function(r) { return r.json(); }),
+        fetch('/static/data/stations/india_stations.geojson').then(function(r) { return r.json(); }),
+        fetch('/static/data/zones/rakshak_zones.json').then(function(r) { return r.json(); }),
+        fetch('/static/data/monitoring/rakshak_monitoring.json').then(function(r) { return r.json(); })
     ]).then(function(results) {
-        var stations = results[0];
-        var routes   = results[1];
-        var tickets  = results[2];
-        var alerts   = results[3];
-        var summary  = results[4];
+        g_railwayMajorData = results[0];
+        g_railwayFullData  = results[1];
+        g_stationData      = results[2];
+        g_zonesData        = results[3];
+        g_monitoringData   = results[4];
 
-        console.log('Loaded:', stations.length, 'stations,', routes.length, 'routes,', tickets.length, 'tickets,', alerts.length, 'alerts');
-
-        // Update stats bar with live DB counts
-        _updateStatsBar(summary);
-
-        // Render layers (order matters: routes first, then markers on top)
-        _renderRoutes(map, routes);
-        _renderStations(map, stations);
-        _renderTickets(map, tickets);
-        var alertMarkers = _renderAlerts(map, alerts);
-
-        // Fit map to show entire Indian railway network
-        var indiaBounds = L.latLngBounds(
-            [6.5, 68.0],    // Southwest (Kanyakumari / Gujarat coast)
-            [35.5, 97.5]    // Northeast (Kashmir / Arunachal Pradesh)
+        console.log('RAKSHAK Map Data Loaded:',
+            g_railwayFullData.features.length, 'real OSM track lines,',
+            g_stationData.features.length, 'stations,',
+            g_zonesData.length, 'zones.'
         );
 
-        // Handle focus_alert URL parameter
-        var urlParams = new URLSearchParams(window.location.search);
-        var focusAlert = urlParams.get('focus_alert');
+        // Render Zone Navigator
+        _renderZoneNavigator(g_zonesData);
 
-        if (focusAlert && alertMarkers[focusAlert]) {
-            var marker = alertMarkers[focusAlert];
-            map.setView(marker.getLatLng(), 12);
-            marker.openPopup();
-        } else {
-            map.fitBounds(indiaBounds, { padding: [20, 20] });
-        }
+        // Render Layers
+        _renderTracksData();
+        _renderStationsData();
 
-        // Start train simulation (Phase 8)
-        if (typeof initTrainSimulation === 'function') {
-            initTrainSimulation(map);
-        }
+        // Update Bottom Status Bar
+        _updateStatusBar();
+
+        // Default selection: Critical Asset VIB-04A (Zone 04)
+        _selectCriticalAsset();
 
     }).catch(function(err) {
-        console.error('Failed to load map data:', err);
+        console.error('Failed to load railway data datasets:', err);
+    });
+
+    // Update timestamp clock
+    _startClock();
+}
+
+
+// ================================================================
+// MAP CONTROLS & EVENT LISTENERS
+// ================================================================
+
+function _setupMapControls(indiaBounds) {
+    var btnIn = document.getElementById('btn-zoom-in');
+    var btnOut = document.getElementById('btn-zoom-out');
+    var btnReset = document.getElementById('btn-reset-india');
+
+    if (btnIn) btnIn.addEventListener('click', function() { rakshakMap.zoomIn(); });
+    if (btnOut) btnOut.addEventListener('click', function() { rakshakMap.zoomOut(); });
+    if (btnReset) btnReset.addEventListener('click', function() {
+        rakshakMap.fitBounds(indiaBounds, { padding: [10, 10] });
+    });
+
+    // View Switcher (MAP | SCHEMATIC)
+    var btnMap = document.getElementById('btn-view-map');
+    var btnSch = document.getElementById('btn-view-schematic');
+    if (btnMap && btnSch) {
+        btnMap.addEventListener('click', function() {
+            btnMap.classList.add('active');
+            btnSch.classList.remove('active');
+        });
+        btnSch.addEventListener('click', function() {
+            btnSch.classList.add('active');
+            btnMap.classList.remove('active');
+        });
+    }
+}
+
+function _setupFilters() {
+    var assetFilter = document.getElementById('asset-type-filter');
+    var priorityFilter = document.getElementById('alert-priority-filter');
+
+    if (assetFilter) assetFilter.addEventListener('change', _applyFilters);
+    if (priorityFilter) priorityFilter.addEventListener('change', _applyFilters);
+}
+
+function _applyFilters() {
+    var assetType = document.getElementById('asset-type-filter').value;
+
+    if (assetType === 'station') {
+        if (mainRailwayGeoJsonLayer) rakshakMap.removeLayer(mainRailwayGeoJsonLayer);
+        glowLayerGroup.clearLayers();
+        _renderStationsData();
+    } else if (assetType === 'track') {
+        stationLayerGroup.clearLayers();
+        _renderTracksData();
+    } else {
+        _renderTracksData();
+        _renderStationsData();
+    }
+}
+
+function _updateLayerVisibility() {
+    if (g_railwayFullData) _renderTracksData();
+    if (g_stationData) _renderStationsData();
+}
+
+
+// ================================================================
+// ZONE NAVIGATOR
+// ================================================================
+
+function _renderZoneNavigator(zones) {
+    var container = document.getElementById('zone-list');
+    if (!container) return;
+    container.innerHTML = '';
+
+    zones.forEach(function(z) {
+        var item = document.createElement('div');
+        item.className = 'zone-item';
+        item.dataset.zoneId = z.id;
+
+        var statusClass = z.status.toLowerCase();
+        var iconHtml = '<div class="status-badge-icon ' + statusClass + '"></div>';
+
+        item.innerHTML =
+            '<span class="zone-name">' + z.short_name + ': ' + z.status + '</span>' +
+            iconHtml;
+
+        item.addEventListener('click', function() {
+            document.querySelectorAll('.zone-item').forEach(function(el) { el.classList.remove('active'); });
+            item.classList.add('active');
+
+            if (z.bounds) {
+                rakshakMap.fitBounds(z.bounds, { padding: [20, 20] });
+            } else if (z.center) {
+                rakshakMap.setView(z.center, z.zoom || 7);
+            }
+
+            if (z.id === 'ZONE-04') {
+                _selectCriticalAsset();
+            }
+        });
+
+        container.appendChild(item);
     });
 }
 
 
 // ================================================================
-// STATS BAR UPDATE — populate from API summary
+// HIGH-PERFORMANCE CANVAS VECTOR TRACK RENDERING (36,000+ REAL LINES)
 // ================================================================
-function _updateStatsBar(summary) {
-    var statValues = document.querySelectorAll('.map-stat-value');
-    if (statValues.length >= 4) {
-        statValues[0].textContent = summary.stations || '—';
-        statValues[1].textContent = summary.track_sections || '—';
-        statValues[2].textContent = summary.active_routes || '—';
-        statValues[3].textContent = summary.railway_zones || '—';
+
+function _renderTracksData() {
+    if (mainRailwayGeoJsonLayer) {
+        rakshakMap.removeLayer(mainRailwayGeoJsonLayer);
+        mainRailwayGeoJsonLayer = null;
+    }
+    glowLayerGroup.clearLayers();
+
+    var currentZoom = rakshakMap.getZoom();
+    // Choose data source based on zoom level for maximum performance & detail
+    var activeDataset = (currentZoom < 7 && g_railwayMajorData) ? g_railwayMajorData : g_railwayFullData;
+    if (!activeDataset || !activeDataset.features) return;
+
+    var monitoredMap = (g_monitoringData && g_monitoringData.monitored_tracks) ? g_monitoringData.monitored_tracks : {};
+
+    // Dynamic weight & color based on zoom
+    var baseWeight = 0.9;
+    var baseColor  = '#475569'; // Muted blue-gray
+
+    if (currentZoom >= 7 && currentZoom <= 9) {
+        baseWeight = 1.4;
+        baseColor  = '#64748b';
+    } else if (currentZoom >= 10) {
+        baseWeight = 2.2;
+        baseColor  = '#8193a8';
+    }
+
+    // Single unified Leaflet GeoJSON layer using HTML5 Canvas renderer
+    mainRailwayGeoJsonLayer = L.geoJSON(activeDataset, {
+        style: function(feature) {
+            var featId = feature.id;
+            var status = monitoredMap[featId] || 'normal';
+            var isSelected = (featId === g_selectedFeatureId);
+
+            var color = baseColor;
+            var weight = baseWeight;
+            var opacity = 0.85;
+
+            if (status === 'warning') {
+                color = '#f59e0b';
+                weight = Math.max(3.0, baseWeight + 1.5);
+                opacity = 1.0;
+            } else if (status === 'critical') {
+                color = '#ef4444';
+                weight = Math.max(3.5, baseWeight + 2.0);
+                opacity = 1.0;
+            } else if (status === 'healthy') {
+                color = '#10b981';
+                weight = Math.max(2.2, baseWeight + 0.8);
+                opacity = 0.95;
+            } else if (isSelected) {
+                color = '#06b6d4';
+                weight = Math.max(3.5, baseWeight + 2.0);
+                opacity = 1.0;
+            }
+
+            return {
+                color: color,
+                weight: weight,
+                opacity: opacity,
+                lineCap: 'round',
+                lineJoin: 'round'
+            };
+        },
+        onEachFeature: function(feature, layer) {
+            var featId = feature.id;
+            var status = monitoredMap[featId] || 'normal';
+
+            // Add glow polylines for warning and critical monitored sections
+            if (status === 'warning' || status === 'critical') {
+                var glowColor = (status === 'critical') ? '#ef4444' : '#f59e0b';
+                var glowPoly = L.geoJSON(feature, {
+                    style: { color: glowColor, weight: 12, opacity: 0.3, lineCap: 'round' }
+                });
+                glowLayerGroup.addLayer(glowPoly);
+            }
+
+            layer.on('click', function(e) {
+                L.DomEvent.stopPropagation(e);
+                g_selectedFeatureId = featId;
+                _renderTracksData(); // Refresh styling
+                _renderTrackInspector(feature.properties, status);
+            });
+        }
+    }).addTo(rakshakMap);
+}
+
+
+// ================================================================
+// RENDER STATIONS (3,900+ REAL OSM STATIONS & JUNCTIONS)
+// ================================================================
+
+function _renderStationsData() {
+    stationLayerGroup.clearLayers();
+    if (!g_stationData || !g_stationData.features) return;
+
+    var currentZoom = rakshakMap.getZoom();
+
+    g_stationData.features.forEach(function(feature) {
+        var coords = feature.geometry.coordinates; // [lon, lat]
+        var props = feature.properties;
+
+        var lat = coords[1];
+        var lng = coords[0];
+
+        var isJunction = (props.railway === 'junction');
+
+        // Zoom filter: at national zoom (zoom < 7), hide all station circle markers so track lines dominate
+        if (currentZoom < 7) {
+            return;
+        }
+
+        var circleMarker = L.circleMarker([lat, lng], {
+            radius: isJunction ? 4.0 : 2.5,
+            color: isJunction ? '#38bdf8' : '#64748b',
+            fillColor: isJunction ? '#0284c7' : '#0f172a',
+            fillOpacity: 1.0,
+            weight: isJunction ? 1.5 : 1.0
+        });
+
+        circleMarker.on('click', function(e) {
+            L.DomEvent.stopPropagation(e);
+            _renderStationInspector(props);
+        });
+
+        if (currentZoom >= 8) {
+            circleMarker.bindTooltip(props.name + (props.ref !== 'Not available' ? ' (' + props.ref + ')' : ''), {
+                direction: 'top',
+                offset: [0, -6],
+                className: 'station-tooltip'
+            });
+        }
+
+        stationLayerGroup.addLayer(circleMarker);
+    });
+
+    // Add Critical Sensor VIB-04A marker
+    if (g_monitoringData && g_monitoringData.critical_asset) {
+        var crit = g_monitoringData.critical_asset;
+        var critMarker = L.circleMarker([crit.position.lat, crit.position.lng], {
+            radius: 6.5,
+            color: '#ffffff',
+            fillColor: '#ef4444',
+            fillOpacity: 1.0,
+            weight: 2
+        });
+
+        var critGlow = L.circleMarker([crit.position.lat, crit.position.lng], {
+            radius: 16,
+            color: 'transparent',
+            fillColor: '#ef4444',
+            fillOpacity: 0.35,
+            interactive: false
+        });
+
+        critMarker.on('click', function(e) {
+            L.DomEvent.stopPropagation(e);
+            _selectCriticalAsset();
+        });
+
+        stationLayerGroup.addLayer(critGlow);
+        stationLayerGroup.addLayer(critMarker);
     }
 }
 
 
 // ================================================================
-// STATION MARKERS
+// INSPECTOR PANEL RENDERING
 // ================================================================
-function _renderStations(map, stations) {
-    stations.forEach(function(station) {
-        var color = STATUS_COLORS[station.status] || STATUS_COLORS.healthy;
-        var glow  = STATUS_GLOW[station.status]  || STATUS_GLOW.healthy;
 
-        // Outer glow circle
-        L.circleMarker([station.lat, station.lng], {
-            radius: 16,
-            color: 'transparent',
-            fillColor: glow,
-            fillOpacity: 0.3,
-            interactive: false,
-        }).addTo(map);
+function _selectCriticalAsset() {
+    if (!g_monitoringData || !g_monitoringData.critical_asset) return;
+    var crit = g_monitoringData.critical_asset;
 
-        // Inner station marker
-        var marker = L.circleMarker([station.lat, station.lng], {
-            radius: 8,
-            color: color,
-            fillColor: color,
-            fillOpacity: 0.9,
-            weight: 2,
-        }).addTo(map);
-
-        // Build popup HTML
-        var statusLabel = station.status.charAt(0).toUpperCase() + station.status.slice(1);
-        var alertsText = station.active_alerts > 0
-            ? '<span style="color:' + STATUS_COLORS.critical + '">' + station.active_alerts + '</span>'
-            : '<span style="color:' + STATUS_COLORS.healthy + '">0</span>';
-
-        var popupHtml = '<div class="station-popup">' +
-            '<h4>' + station.name + '</h4>' +
-            '<div class="popup-code">Station Code: ' + station.code + '</div>' +
-            '<div class="popup-detail"><span class="popup-label">Zone</span><span class="popup-value">' + station.zone + '</span></div>' +
-            '<div class="popup-detail"><span class="popup-label">Division</span><span class="popup-value">' + station.division + '</span></div>' +
-            '<div class="popup-detail"><span class="popup-label">Status</span><span class="popup-value" style="color:' + color + '">' + statusLabel + '</span></div>' +
-            '<div class="popup-detail"><span class="popup-label">Tracks Monitored</span><span class="popup-value">' + station.tracks_monitored + '</span></div>' +
-            '<div class="popup-detail"><span class="popup-label">Active Alerts</span><span class="popup-value">' + alertsText + '</span></div>' +
-            '<div class="popup-detail"><span class="popup-label">Daily Trains</span><span class="popup-value">' + station.daily_trains + '</span></div>' +
-            '</div>';
-
-        marker.bindPopup(popupHtml, {
-            maxWidth: 280,
-            className: 'dark-popup',
-        });
-
-        // Station code label
-        marker.bindTooltip(station.code, {
-            permanent: true,
-            direction: 'top',
-            offset: [0, -12],
-            className: 'station-label',
-        });
+    document.querySelectorAll('.zone-item').forEach(function(el) {
+        if (el.dataset.zoneId === 'ZONE-04') el.classList.add('active');
+        else el.classList.remove('active');
     });
+
+    _renderCriticalAssetInspector(crit);
 }
 
+function _renderCriticalAssetInspector(crit) {
+    var container = document.getElementById('inspector-content');
+    if (!container) return;
 
-// ================================================================
-// ROUTE POLYLINES
-// ================================================================
-function _renderRoutes(map, routes) {
-    routes.forEach(function(route) {
-        var color = STATUS_COLORS[route.status] || '#3b82f6';
+    var historyHtml = crit.maintenance_history.map(function(item) {
+        return '<div style="font-size:0.75rem;color:#cbd5e1;padding:2px 0;">' + item + '</div>';
+    }).join('');
 
-        var polyline = L.polyline(route.coordinates, {
-            color: color,
-            weight: 2.5,
-            opacity: 0.6,
-            dashArray: '8, 6',
-            lineJoin: 'round',
-        }).addTo(map);
+    container.innerHTML =
+        '<div class="asset-title">' +
+            '<span>ASSET: ' + crit.sensor_id + '</span>' +
+            '<span class="risk-tag">HIGH (' + crit.failure_risk + ')</span>' +
+        '</div>' +
 
-        // Route tooltip on hover
-        var distText = route.distance_km ? route.distance_km + ' km' : '';
-        polyline.bindTooltip(
-            '<strong>' + route.name + '</strong><br>' +
-            '<span style="font-size:0.8em;color:#94a3b8">' + route.train + '</span>' +
-            (distText ? '<br><span style="font-size:0.75em;color:#64748b">' + distText + '</span>' : ''),
-            { sticky: true }
-        );
+        '<div class="prop-group">' +
+            '<div class="prop-row"><span class="prop-key">ZONE</span><span class="prop-val">' + crit.zone + '</span></div>' +
+            '<div class="prop-row"><span class="prop-key">STATUS</span><span class="prop-val" style="color:#ef4444">' + crit.status + '</span></div>' +
+            '<div class="prop-row"><span class="prop-key">CURRENT READING</span><span class="prop-val" style="color:#ef4444">' + crit.reading + '</span></div>' +
+            '<div class="prop-row"><span class="prop-key">LAT, LNG</span><span class="prop-val">' + crit.position.lat.toFixed(4) + ', ' + crit.position.lng.toFixed(4) + '</span></div>' +
+        '</div>' +
+
+        '<div class="waveform-box">' +
+            '<div class="waveform-header">' +
+                '<span>SIGNAL WAVEFORM</span>' +
+                '<span style="color:#ef4444">SPIKE DETECTED</span>' +
+            '</div>' +
+            '<canvas id="waveform-canvas"></canvas>' +
+        '</div>' +
+
+        '<div class="prop-group">' +
+            '<div style="font-family:\'JetBrains Mono\',monospace;font-size:0.7rem;color:#64748b;font-weight:600;margin-bottom:4px;">MAINTENANCE HISTORY</div>' +
+            historyHtml +
+        '</div>' +
+
+        '<div class="action-card">' +
+            '<div class="action-card-title">ACTION REQUIRED</div>' +
+            '<button class="action-btn">' + crit.action_required + '</button>' +
+        '</div>';
+
+    _drawWaveformCanvas(crit.waveform);
+}
+
+function _drawWaveformCanvas(waveform) {
+    var canvas = document.getElementById('waveform-canvas');
+    if (!canvas) return;
+    var ctx = canvas.getContext('2d');
+
+    canvas.width = canvas.offsetWidth || 230;
+    canvas.height = canvas.offsetHeight || 55;
+
+    var w = canvas.width;
+    var h = canvas.height;
+
+    ctx.clearRect(0, 0, w, h);
+
+    ctx.strokeStyle = '#151d2f';
+    ctx.lineWidth = 1;
+
+    for (var x = 0; x < w; x += 20) {
+        ctx.beginPath();
+        ctx.moveTo(x, 0);
+        ctx.lineTo(x, h);
+        ctx.stroke();
+    }
+    for (var y = 0; y < h; y += 12) {
+        ctx.beginPath();
+        ctx.moveTo(0, y);
+        ctx.lineTo(w, y);
+        ctx.stroke();
+    }
+
+    if (!waveform || waveform.length === 0) return;
+
+    var step = w / (waveform.length - 1);
+    ctx.beginPath();
+    ctx.lineWidth = 2;
+
+    waveform.forEach(function(val, idx) {
+        var px = idx * step;
+        var py = h - ((val / 6.5) * h);
+
+        if (idx === 0) ctx.moveTo(px, py);
+        else ctx.lineTo(px, py);
     });
+
+    ctx.strokeStyle = '#ef4444';
+    ctx.stroke();
+}
+
+function _renderTrackInspector(props, status) {
+    var container = document.getElementById('inspector-content');
+    if (!container) return;
+
+    var statusColor = (status === 'critical') ? '#ef4444' : (status === 'warning' ? '#f59e0b' : '#10b981');
+
+    container.innerHTML =
+        '<div class="asset-title">' +
+            '<span>RAILWAY TRACK</span>' +
+            '<span class="risk-tag" style="background:rgba(56,189,248,0.1);color:#38bdf8;border-color:rgba(56,189,248,0.3)">' + (props.ref || 'OSM') + '</span>' +
+        '</div>' +
+
+        '<div class="prop-group">' +
+            '<div class="prop-row"><span class="prop-key">NAME</span><span class="prop-val">' + (props.name || 'Not available') + '</span></div>' +
+            '<div class="prop-row"><span class="prop-key">REFERENCE</span><span class="prop-val">' + (props.ref || 'Not available') + '</span></div>' +
+            '<div class="prop-row"><span class="prop-key">OPERATOR</span><span class="prop-val">' + (props.operator || 'Not available') + '</span></div>' +
+            '<div class="prop-row"><span class="prop-key">STATUS</span><span class="prop-val" style="color:' + statusColor + '">' + status.toUpperCase() + '</span></div>' +
+            '<div class="prop-row"><span class="prop-key">GAUGE</span><span class="prop-val">' + (props.gauge || 'Not available') + '</span></div>' +
+            '<div class="prop-row"><span class="prop-key">ELECTRIFIED</span><span class="prop-val">' + (props.electrified || 'Not available') + '</span></div>' +
+            '<div class="prop-row"><span class="prop-key">TRACKS</span><span class="prop-val">' + (props.tracks || 'Not available') + '</span></div>' +
+            '<div class="prop-row"><span class="prop-key">USAGE</span><span class="prop-val">' + (props.usage || 'Not available') + '</span></div>' +
+            '<div class="prop-row"><span class="prop-key">MAX SPEED</span><span class="prop-val">' + (props.maxspeed || 'Not available') + '</span></div>' +
+        '</div>' +
+
+        '<div class="action-card" style="background:rgba(15,23,42,0.6);border-color:#1e293b">' +
+            '<div class="action-card-title" style="color:#94a3b8">RAKSHAK MONITORED CORRIDOR</div>' +
+            '<div style="font-size:0.75rem;color:#cbd5e1;margin-top:4px;">OSM Geometry Verified • Live Sensor Overlay Active</div>' +
+        '</div>';
+}
+
+function _renderStationInspector(props) {
+    var container = document.getElementById('inspector-content');
+    if (!container) return;
+
+    container.innerHTML =
+        '<div class="asset-title">' +
+            '<span>STATION DETAILS</span>' +
+            '<span class="risk-tag" style="background:rgba(16,185,129,0.1);color:#10b981;border-color:rgba(16,185,129,0.3)">' + (props.ref || 'OSM') + '</span>' +
+        '</div>' +
+
+        '<div class="prop-group">' +
+            '<div class="prop-row"><span class="prop-key">STATION NAME</span><span class="prop-val">' + (props.name || 'Not available') + '</span></div>' +
+            '<div class="prop-row"><span class="prop-key">CODE</span><span class="prop-val">' + (props.ref || 'Not available') + '</span></div>' +
+            '<div class="prop-row"><span class="prop-key">OPERATOR</span><span class="prop-val">' + (props.operator || 'Not available') + '</span></div>' +
+            '<div class="prop-row"><span class="prop-key">TYPE</span><span class="prop-val">' + (props.railway ? props.railway.toUpperCase() : 'STATION') + '</span></div>' +
+            '<div class="prop-row"><span class="prop-key">GAUGE</span><span class="prop-val">' + (props.gauge || 'Not available') + '</span></div>' +
+            '<div class="prop-row"><span class="prop-key">ELECTRIFIED</span><span class="prop-val">' + (props.electrified || 'Not available') + '</span></div>' +
+        '</div>';
 }
 
 
 // ================================================================
-// TICKET MARKERS — color-coded by priority/status
+// BOTTOM STATUS BAR & LIVE CLOCK
 // ================================================================
-function _renderTickets(map, tickets) {
-    tickets.forEach(function(ticket) {
-        // Use status-based color, falling back to priority-based
-        var color = TICKET_STATUS_COLORS[ticket.status] || TICKET_COLORS[ticket.priority] || '#3b82f6';
 
-        var marker = L.circleMarker([ticket.lat, ticket.lng], {
-            radius: 5,
-            color: color,
-            fillColor: color,
-            fillOpacity: 0.7,
-            weight: 1.5,
-        }).addTo(map);
+function _updateStatusBar() {
+    var tracksEl = document.getElementById('stat-tracks-count');
+    var sensorsEl = document.getElementById('stat-sensors-active');
 
-        var priorityLabel = ticket.priority.charAt(0).toUpperCase() + ticket.priority.slice(1);
-        var statusLabel = ticket.status.replace(/_/g, ' ');
-        statusLabel = statusLabel.charAt(0).toUpperCase() + statusLabel.slice(1);
-
-        var popupHtml = '<div class="station-popup">' +
-            '<h4>🎫 ' + ticket.id + '</h4>' +
-            '<div class="popup-code">' + ticket.title + '</div>' +
-            '<div class="popup-detail"><span class="popup-label">Zone</span><span class="popup-value">' + ticket.zone + '</span></div>' +
-            '<div class="popup-detail"><span class="popup-label">Division</span><span class="popup-value">' + ticket.division + '</span></div>' +
-            '<div class="popup-detail"><span class="popup-label">Station</span><span class="popup-value">' + ticket.station + '</span></div>' +
-            '<div class="popup-detail"><span class="popup-label">Status</span><span class="popup-value" style="color:' + color + '">' + statusLabel + '</span></div>' +
-            '<div class="popup-detail"><span class="popup-label">Priority</span><span class="popup-value" style="color:' + (TICKET_COLORS[ticket.priority] || '#fff') + '">' + priorityLabel + '</span></div>' +
-            '<div class="popup-detail"><span class="popup-label">Team</span><span class="popup-value">' + ticket.team + '</span></div>' +
-            '<div class="popup-detail"><span class="popup-label">Section</span><span class="popup-value">' + ticket.section + '</span></div>' +
-            '</div>';
-
-        marker.bindPopup(popupHtml, {
-            maxWidth: 300,
-            className: 'dark-popup',
-        });
-    });
+    if (tracksEl && g_railwayFullData) tracksEl.textContent = g_railwayFullData.features.length;
+    if (sensorsEl) sensorsEl.textContent = '98/100';
 }
 
-
-// ================================================================
-// ALERT MARKERS — pulsing severity indicators
-// ================================================================
-function _renderAlerts(map, alerts) {
-    var markers = {};
-    alerts.forEach(function(alert) {
-        var color = ALERT_SEVERITY_COLORS[alert.severity] || '#f59e0b';
-
-        // Outer pulsing glow
-        L.circleMarker([alert.lat, alert.lng], {
-            radius: 20,
-            color: 'transparent',
-            fillColor: color,
-            fillOpacity: 0.15,
-            interactive: false,
-        }).addTo(map);
-
-        // Alert marker (diamond-shaped via DivIcon)
-        var marker = L.circleMarker([alert.lat, alert.lng], {
-            radius: 6,
-            color: '#ffffff',
-            fillColor: color,
-            fillOpacity: 1.0,
-            weight: 2,
-        }).addTo(map);
-
-        var popupHtml = '<div class="station-popup">' +
-            '<h4>⚠️ ' + alert.title + '</h4>' +
-            '<div class="popup-code">' + alert.id + '</div>' +
-            '<div class="popup-detail"><span class="popup-label">Severity</span><span class="popup-value" style="color:' + color + '">' + alert.severity.toUpperCase() + '</span></div>' +
-            '<div class="popup-detail"><span class="popup-label">Zone</span><span class="popup-value">' + alert.zone + '</span></div>' +
-            '<div class="popup-detail"><span class="popup-label">Station</span><span class="popup-value">' + alert.station + '</span></div>' +
-            '<div style="margin-top:8px;font-size:0.8em;color:#94a3b8">' + alert.description + '</div>' +
-            '</div>';
-
-        marker.bindPopup(popupHtml, {
-            maxWidth: 320,
-            className: 'dark-popup',
-        });
-        
-        markers[alert.id] = marker;
-    });
-    
-    return markers;
+function _startClock() {
+    function tick() {
+        var el = document.getElementById('stat-timestamp');
+        if (el) {
+            var now = new Date();
+            var hours = String(now.getHours()).padStart(2, '0');
+            var mins  = String(now.getMinutes()).padStart(2, '0');
+            var secs  = String(now.getSeconds()).padStart(2, '0');
+            el.textContent = hours + ':' + mins + ':' + secs + ' IST';
+        }
+    }
+    tick();
+    setInterval(tick, 1000);
 }
-
-
-// ================================================================
-// INJECT MAP STYLES — station labels, popups, tooltips
-// ================================================================
-function _injectMapStyles() {
-    var style = document.createElement('style');
-    style.textContent =
-        '.station-label {' +
-        '  background: rgba(255, 255, 255, 0.95) !important;' +
-        '  color: #000000 !important;' +
-        '  border: 1px solid rgba(0,0,0,0.12) !important;' +
-        '  font-family: "JetBrains Mono", monospace !important;' +
-        '  font-size: 10px !important;' +
-        '  font-weight: 600 !important;' +
-        '  letter-spacing: 1px !important;' +
-        '  padding: 2px 6px !important;' +
-        '  border-radius: 4px !important;' +
-        '  box-shadow: 0 2px 8px rgba(0,0,0,0.1) !important;' +
-        '}' +
-        '.station-label::before { border-top-color: rgba(255,255,255,0.95) !important; }' +
-        '.dark-popup .leaflet-popup-content-wrapper {' +
-        '  background: #ffffff !important;' +
-        '  color: #000000 !important;' +
-        '  border: 1px solid rgba(0,0,0,0.1) !important;' +
-        '  box-shadow: 0 4px 16px rgba(0,0,0,0.12) !important;' +
-        '}' +
-        '.dark-popup .leaflet-popup-tip {' +
-        '  background: #ffffff !important;' +
-        '}' +
-        '.station-popup h4 {' +
-        '  margin: 0 0 8px 0;' +
-        '  color: #000000;' +
-        '  font-size: 0.95rem;' +
-        '  font-weight: 600;' +
-        '}' +
-        '.popup-code {' +
-        '  font-family: "JetBrains Mono", monospace;' +
-        '  font-size: 0.75rem;' +
-        '  color: #666666;' +
-        '  margin-bottom: 8px;' +
-        '}' +
-        '.popup-detail {' +
-        '  display: flex;' +
-        '  justify-content: space-between;' +
-        '  padding: 3px 0;' +
-        '  border-bottom: 1px solid rgba(0,0,0,0.06);' +
-        '}' +
-        '.popup-label {' +
-        '  color: #888888;' +
-        '  font-size: 0.8rem;' +
-        '}' +
-        '.popup-value {' +
-        '  color: #000000;' +
-        '  font-family: "JetBrains Mono", monospace;' +
-        '  font-size: 0.8rem;' +
-        '  font-weight: 500;' +
-        '}';
-    document.head.appendChild(style);
-}
-
