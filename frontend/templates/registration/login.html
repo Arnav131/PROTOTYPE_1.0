@@ -1,0 +1,35 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RAKSHAK — Login</title>
+    <link rel="stylesheet" href="{% static 'css/dashboard.css' %}?v=4">
+</head>
+<body>
+    <main class="login-main">
+        <form method="post" class="login-card">
+            {% csrf_token %}
+            <div class="header-brand">
+                <span class="brand-icon">🛡️</span>
+                <div class="brand-text">
+                    <h1 class="brand-name">RAKSHAK</h1>
+                    <span class="brand-subtitle">Railway Operations Control Center</span>
+                </div>
+            </div>
+            {% if form.errors %}
+            <div class="login-error">Invalid username or password.</div>
+            {% endif %}
+            <label>Username
+                <input type="text" name="username" autofocus autocapitalize="none" required>
+            </label>
+            <label>Password
+                <input type="password" name="password" required>
+            </label>
+            <input type="hidden" name="next" value="{{ next }}">
+            <button type="submit">Sign In</button>
+        </form>
+    </main>
+</body>
+</html>

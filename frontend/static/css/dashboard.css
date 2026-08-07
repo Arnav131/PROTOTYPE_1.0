@@ -156,8 +156,6 @@ body {
     transition: background-color var(--transition-slow), color var(--transition-slow);
 }
 
-/* No decorative background gradient — keep it flat */
-
 a {
     color: var(--accent-blue);
     text-decoration: none;
@@ -207,42 +205,61 @@ a:hover { color: var(--accent-cyan); }
     text-transform: uppercase;
 }
 
-.header-center { display: flex; align-items: center; }
-
-.system-status {
-    display: flex;
-    align-items: center;
-    gap: var(--space-sm);
-    padding: 6px 16px;
-    background: var(--accent-green-dim);
-    border: 1px solid rgba(16, 185, 129, 0.2);
-    border-radius: 20px;
-}
-
-.status-dot {
-    width: 8px;
-    height: 8px;
-    border-radius: 50%;
-    background: var(--accent-green);
-}
-
-.status-dot--live {
-    animation: pulse-green 2s ease-in-out infinite;
-}
-
-.status-label {
-    font-size: 0.7rem;
-    font-weight: 600;
-    letter-spacing: 2px;
-    color: var(--accent-green);
-}
-
 .header-right {
     display: flex;
     align-items: center;
     gap: var(--space-lg);
 }
 
+/* ================================================================== */
+/* USER BOX (Header)                                                   */
+/* ================================================================== */
+.user-box { 
+    display: flex; 
+    align-items: center; 
+    gap: 10px; 
+    margin-right: 14px; 
+}
+
+.user-name { 
+    font-family: 'JetBrains Mono', monospace; 
+    font-size: 13px; 
+    color: var(--text-primary);
+}
+
+.role-badge { 
+    font-size: 10px; 
+    padding: 3px 8px; 
+    border-radius: 10px; 
+    font-weight: 600;
+    letter-spacing: 0.5px;
+}
+
+.role-badge--controller { 
+    background: rgba(31,111,235,.15); 
+    color: #1f6feb; 
+}
+
+.role-badge--viewer { 
+    background: rgba(240,136,62,.15); 
+    color: #f0883e; 
+}
+
+.logout-link { 
+    color: #f85149; 
+    text-decoration: none; 
+    font-size: 13px; 
+    font-weight: 500;
+    transition: color var(--transition-fast);
+}
+
+.logout-link:hover {
+    color: #ff6b6b;
+}
+
+/* ================================================================== */
+/* LIVE CLOCK                                                         */
+/* ================================================================== */
 .live-clock {
     text-align: right;
     font-family: 'JetBrains Mono', monospace;
@@ -265,8 +282,6 @@ a:hover { color: var(--accent-cyan); }
     font-size: 0.65rem;
     color: var(--text-muted);
 }
-
-
 
 /* ================================================================== */
 /* THEME TOGGLE BUTTON                                                 */
@@ -299,8 +314,77 @@ a:hover { color: var(--accent-cyan); }
 [data-theme="light"] .theme-toggle .icon-moon { display: none; }
 
 /* ================================================================== */
+/* LOGIN PAGE                                                         */
+/* ================================================================== */
+.login-main { 
+    min-height: 100vh; 
+    display: flex; 
+    align-items: center; 
+    justify-content: center; 
+    background: var(--bg-primary);
+}
+
+.login-card { 
+    width: 360px; 
+    padding: 32px; 
+    border: 1px solid var(--border-primary); 
+    border-radius: 12px;
+    background: var(--bg-secondary); 
+    display: flex; 
+    flex-direction: column; 
+    gap: 14px; 
+}
+
+.login-card h2 {
+    text-align: center;
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: var(--text-primary);
+    margin-bottom: 8px;
+}
+
+.login-card input { 
+    padding: 10px; 
+    border-radius: 8px; 
+    border: 1px solid var(--border-primary); 
+    background: var(--bg-primary); 
+    color: var(--text-primary);
+    font-family: 'Inter', sans-serif;
+    font-size: 14px;
+    transition: border-color var(--transition-fast);
+}
+
+.login-card input:focus {
+    outline: none;
+    border-color: var(--accent-blue);
+}
+
+.login-card button { 
+    padding: 10px; 
+    border-radius: 8px; 
+    background: #1f6feb; 
+    color: #fff; 
+    cursor: pointer; 
+    font-weight: 600;
+    font-family: 'Inter', sans-serif;
+    font-size: 14px;
+    border: none;
+    transition: background var(--transition-fast);
+}
+
+.login-card button:hover {
+    background: #1a5fcc;
+}
+
+.login-error { 
+    color: #f85149; 
+    font-size: 13px; 
+    text-align: center;
+}
+
+/* ================================================================== */
 /* NAVIGATION                                                         */
-/* ==================================================================  */
+/* ================================================================== */
 .control-nav {
     position: sticky;
     top: 64px;
@@ -750,7 +834,6 @@ a:hover { color: var(--accent-cyan); }
     color: var(--accent-red);
     background: var(--accent-red-dim);
     border: 1px solid rgba(239, 68, 68, 0.5);
-
 }
 
 .status-badge--assigned {
@@ -1149,8 +1232,6 @@ a:hover { color: var(--accent-cyan); }
     color: var(--text-muted);
 }
 
-/* Animations removed for minimalist design */
-
 /* ================================================================== */
 /* RESPONSIVE DESIGN                                                  */
 /* ================================================================== */
@@ -1167,15 +1248,15 @@ a:hover { color: var(--accent-cyan); }
         height: 56px;
     }
 
-    .header-center { display: none; }
     .brand-subtitle { display: none; }
-
     .brand-name { font-size: 1.1rem; letter-spacing: 2px; }
+    
+    /* Hide user box on mobile for space */
+    .user-box { display: none; }
 
     .clock-time { font-size: 0.9rem; }
 
     .control-nav { padding: 0 var(--space-md); }
-
     .nav-desc { display: none; }
 
     .nav-item {
@@ -1226,6 +1307,8 @@ a:hover { color: var(--accent-cyan); }
     .kpi-value { font-size: 1.6rem; }
 
     .alert-header { flex-direction: column; }
+    
+    .login-card { width: 90%; padding: 24px; }
 }
 
 /* ================================================================== */
