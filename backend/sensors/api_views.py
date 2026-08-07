@@ -21,8 +21,7 @@ from django.views.decorators.http import require_GET, require_POST
 from django.contrib.auth.decorators import login_required  # ← Add if needed
 from django.views.decorators.cache import never_cache      # ← Add for sensitive endpoints
 
-from ai_models import get_pipeline
-
+from ai_integration.prediction_service import PredictionService
 logger = logging.getLogger("rakshak.api.predict")
 
 # Counter for generating unique alert codes within this process
@@ -102,7 +101,7 @@ def _maybe_create_alert(prediction, track_section_id=None, sensor_id=None):
         anomaly_score = prediction.get("anomaly_score", 0.0)
         fault_type = prediction.get("fault_type", "unknown")
         fault_confidence = prediction.get("fault_confidence", 0.0)
-        explanation = prediction.get("explanation", "")
+        explanation = prediction.get("metadata", {}).get("explanation", prediction.get("explanation", ""))
 
         alert = Alert.objects.create(
             alert_code=alert_code,
@@ -117,7 +116,7 @@ def _maybe_create_alert(prediction, track_section_id=None, sensor_id=None):
                 f"  Anomaly score: {anomaly_score:.4f}\n"
                 f"  Fault type: {fault_type} ({fault_confidence:.1%})\n"
                 f"  Explanation: {explanation}\n"
-                f"  Model: {prediction.get('model_used', 'unknown')}"
+                f"  Model: {prediction.get('provider_name', prediction.get('model_used', 'unknown'))}"
             ),
             confidence_score=Decimal(str(round(anomaly_score, 4))),
             generated_at=timezone.now(),
@@ -176,27 +175,21 @@ def api_predict(request):
             status=400,
         )
 
-    # Get pipeline
-    pipeline = get_pipeline()
-    if pipeline is None:
-        return JsonResponse(
-            {"success": False, "error": "AI pipeline not available"},
-            status=503,
-        )
-
-    # Run inference
-    try:
-        prediction = pipeline.predict(**values)
-    except Exception as e:
-        logger.error(f"Pipeline inference error: {e}", exc_info=True)
-        return JsonResponse(
-            {"success": False, "error": f"Inference failed: {e}"},
-            status=500,
-        )
+    # AI TEAM NOTE: Predictions are now routed through the PredictionService
+    # to support the new provider-agnostic architecture.
+    prediction_service = PredictionService()
 
     # Optionally create alert
     track_section_id = data.get("track_section_id")
     sensor_id = data.get("sensor_id")
+
+    # Run inference
+    prediction_response = prediction_service.predict_for_sensor(
+        sensor_id=str(sensor_id or "unknown"),
+        track_section_id=track_section_id,
+        **values
+    )
+    prediction = prediction_response.to_dict()
     alert_code = None
 
     create_alert = data.get("create_alert", True)
@@ -231,20 +224,8 @@ def api_predict_health(request):
             "timestamp": "2024-01-01T00:00:00Z"
         }
     """
-    pipeline = get_pipeline()
-    if pipeline is None:
-        return JsonResponse({
-            "status": "unavailable",
-            "risk_model_loaded": False,
-            "fault_model_loaded": False,
-            "config_loaded": False,
-            "model_version": "n/a",
-            "mode": "none",
-            "error": "Pipeline failed to initialize",
-            "timestamp": timezone.now().isoformat(),
-        })
-
-    health_data = pipeline.health_check()
+    # AI TEAM NOTE: Health check now polls the provider registry
+    health_data = PredictionService.get_health()
     health_data["timestamp"] = timezone.now().isoformat()  # ← Add timestamp
     return JsonResponse(health_data)
 
@@ -296,13 +277,8 @@ def api_predict_batch(request):
             status=400,
         )
 
-    pipeline = get_pipeline()
-    if pipeline is None:
-        return JsonResponse(
-            {"success": False, "error": "AI pipeline not available"},
-            status=503,
-        )
-
+    # AI TEAM NOTE: Batch predictions are now routed through PredictionService
+    prediction_service = PredictionService()
     create_alerts = data.get("create_alerts", False)
     results = []
 
@@ -316,30 +292,28 @@ def api_predict_batch(request):
             })
             continue
 
-        try:
-            prediction = pipeline.predict(**values)
-            entry = {
-                "index": i,
-                "success": True,
-                "prediction": prediction,
-            }
+        track_section_id = reading.get("track_section_id")
+        sensor_id = reading.get("sensor_id")
 
-            if create_alerts:
-                track_section_id = reading.get("track_section_id")
-                sensor_id = reading.get("sensor_id")
-                alert_code = _maybe_create_alert(prediction, track_section_id, sensor_id)
-                entry["alert_created"] = alert_code is not None
-                entry["alert_id"] = alert_code
+        prediction_response = prediction_service.predict_for_sensor(
+            sensor_id=str(sensor_id or "unknown"),
+            track_section_id=track_section_id,
+            **values
+        )
+        prediction = prediction_response.to_dict()
 
-            results.append(entry)
+        entry = {
+            "index": i,
+            "success": True,
+            "prediction": prediction,
+        }
 
-        except Exception as e:
-            logger.error(f"Batch prediction error at index {i}: {e}")  # ← Log with index
-            results.append({
-                "index": i,
-                "success": False,
-                "error": str(e),
-            })
+        if create_alerts:
+            alert_code = _maybe_create_alert(prediction, track_section_id, sensor_id)
+            entry["alert_created"] = alert_code is not None
+            entry["alert_id"] = alert_code
+
+        results.append(entry)
 
     return JsonResponse({
         "success": True,

@@ -1430,6 +1430,7 @@ class AuditLog(models.Model):
         STATUS_CHANGE = "status_change", "Status Change"
         ESCALATION = "escalation", "Escalation"
         LOGIN = "login", "Login"
+        LOGOUT = "logout", "Logout"
         SYSTEM = "system", "System"
 
     class ActorType(models.TextChoices):
