@@ -37,3 +37,11 @@ desktop.ini
 
 # Logs
 *.log
+
+# Raw GIS temporary downloads
+raw_overpass_railway.json
+*.pbf
+*.mbtiles
+*.pmtiles
+*.shp
+*.zip
