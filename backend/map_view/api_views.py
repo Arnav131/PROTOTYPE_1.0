@@ -14,7 +14,7 @@ import random
 import time
 from decimal import Decimal
 
-from django.db.models import Q
+from django.db.models import Count, Q
 from django.http import JsonResponse
 
 # Custom decorator that returns 401 JSON instead of redirecting to login page
@@ -75,24 +75,38 @@ def api_stations(request):
     """
     # Fetch all active stations with their zone and division data
     # select_related() performs a SQL JOIN to avoid N+1 queries
+    # DATABASE TEAM NOTE:
+    # Optimization: Replaced N+1 queries with Django ORM annotations.
+    # Why: Previously, each station executed 3 additional queries in a loop (2 for alerts, 1 for tracks).
+    # Compatibility: Fully compatible with SQLite and PostgreSQL.
+    # Index impact: Uses existing indexes on status and active fields. No new indexes required.
+    # Migration required: NO.
     stations = (
         Station.objects
         .filter(is_active=True)  # Only show operational stations
         .select_related("division__zone")  # Eager load division and zone
+        .annotate(
+            active_alerts_start=Count(
+                "track_sections_starting__alerts",
+                filter=Q(track_sections_starting__alerts__status="active"),
+                distinct=True
+            ),
+            active_alerts_end=Count(
+                "track_sections_ending__alerts",
+                filter=Q(track_sections_ending__alerts__status="active"),
+                distinct=True
+            ),
+            tracks_start=Count("track_sections_starting", distinct=True),
+            tracks_end=Count("track_sections_ending", distinct=True)
+        )
         .order_by("station_name")
     )
 
     data = []
     for s in stations:
-        # Count active alerts on track sections where this station is
-        # either the start or end point. This indicates operational issues.
-        active_alerts = Alert.objects.filter(
-            track_section__start_station=s,
-            status="active",  # Only count unresolved alerts
-        ).count() + Alert.objects.filter(
-            track_section__end_station=s,
-            status="active",
-        ).count()
+        # Calculate active alerts and monitored tracks from annotations
+        # avoiding N+1 queries.
+        active_alerts = s.active_alerts_start + s.active_alerts_end
 
         # Determine station health status based on alert count
         # This drives the color coding on the map (green/yellow/red)
@@ -103,11 +117,8 @@ def api_stations(request):
         else:
             status = "healthy"
 
-        # Count track sections connected to this station
-        # Q objects allow OR conditions in the same query
-        tracks_monitored = TrackSection.objects.filter(
-            Q(start_station=s) | Q(end_station=s)
-        ).count()
+        # Calculate track sections connected to this station
+        tracks_monitored = s.tracks_start + s.tracks_end
         
         # Generate a stable pseudo-random daily train count
         # Using station PK ensures the same station always gets the same number
@@ -221,11 +232,17 @@ def api_tickets(request):
     Response: JSON array of ticket objects (max 200 for performance)
     """
     # Fetch non-closed tickets with related station, zone, and team data
+    # DATABASE TEAM NOTE:
+    # Optimization: Added track_section__end_station to select_related to eliminate N+1 query.
+    # Why: The loop accesses t.track_section.end_station.station_name, which previously triggered a query per ticket.
+    # Compatibility: Fully compatible with SQLite and PostgreSQL.
+    # Migration required: NO.
     tickets = (
         Ticket.objects
         .exclude(status="closed")  # Don't show resolved/closed tickets
         .select_related(
             "track_section__start_station__division__zone",  # For location
+            "track_section__end_station",  # Eager load to prevent N+1
             "assigned_team",  # For team name
         )
         .order_by("-created_at")[:200]  # Limit to 200 newest tickets for map performance
