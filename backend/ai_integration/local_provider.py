@@ -107,6 +107,9 @@ class LocalPickleProvider(BaseAIProvider):
         self._alert_threshold = alert_threshold
         self._critical_threshold = critical_threshold
 
+        # Cache for metadata to prevent repeated disk reads
+        self._cached_metadata: Optional[Dict[str, Any]] = None
+
         # Pipeline instance — lazy-loaded
         self._pipeline = None
         self._pipeline_loaded = False
@@ -372,6 +375,38 @@ class LocalPickleProvider(BaseAIProvider):
     def get_provider_name(self) -> str:
         """Return the stable identifier for this provider."""
         return "local_pickle"
+
+    def get_metadata(self) -> Dict[str, Any]:
+        """
+        Return model metadata and configuration by reading model_config.json.
+        Reads from disk only once and caches the result.
+        """
+        if self._cached_metadata is not None:
+            return self._cached_metadata
+
+        config_path = os.path.join(self._model_dir, "model_config.json")
+        try:
+            import json
+            with open(config_path, 'r') as f:
+                data = json.load(f)
+                self._cached_metadata = {
+                    "window_size": data.get("window_size", self._window_size),
+                    "model_version": data.get("version", "unknown"),
+                    "supported_features": data.get("feature_order", []),
+                    "alert_threshold": self._alert_threshold,
+                    "critical_threshold": self._critical_threshold
+                }
+        except Exception as e:
+            logger.warning(f"LocalPickleProvider: Failed to read model metadata: {e}")
+            self._cached_metadata = {
+                "window_size": self._window_size,
+                "model_version": "unknown",
+                "supported_features": [],
+                "alert_threshold": self._alert_threshold,
+                "critical_threshold": self._critical_threshold
+            }
+            
+        return self._cached_metadata
 
     def reset(self):
         """

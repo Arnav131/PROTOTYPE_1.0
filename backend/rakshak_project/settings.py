@@ -145,6 +145,8 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 # Whether this code is PostgreSQL compatible: YES (no DB interaction)
 # Whether teammate needs to modify anything: NO
 # ---------------------------------------------------------------------------
+SENSOR_SOURCE_CLASS = 'ai_integration.sensor_source.MockSensorSource'
+
 RAKSHAK_AI = {
     # Which provider to use by default.
     # Change this single value to switch the entire AI backend.
@@ -157,7 +159,7 @@ RAKSHAK_AI = {
         'local': {
             'CLASS': 'ai_integration.local_provider.LocalPickleProvider',
             'MODEL_DIR': str(BASE_DIR.parent / 'ai_engin' / 'trained_models'),
-            'WINDOW_SIZE': 64,
+            'WINDOW_SIZE': 16,
             'ALERT_THRESHOLD': 0.7,
             'CRITICAL_THRESHOLD': 0.9,
         },

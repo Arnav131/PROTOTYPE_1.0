@@ -309,6 +309,15 @@ class BaseAIProvider(ABC):
         """
         pass
 
+    @abstractmethod
+    def get_metadata(self) -> Dict[str, Any]:
+        """
+        Return model metadata, capabilities, and configuration.
+        Must include window_size, model_version, supported_features,
+        and any available threshold values.
+        """
+        pass
+
     def predict_batch(
         self, requests: List[PredictionRequest]
     ) -> List[PredictionResponse]:

@@ -24,4 +24,6 @@ urlpatterns = [
     path('api/predict/', include('sensors.api_urls')),
     # AI Integration Layer — prediction, health, provider endpoints
     path('api/ai/', include('ai_integration.api_urls')),
+    # Journey Simulation — hackathon demo endpoints
+    path('api/journey/', include('ai_integration.journey_urls')),
 ]

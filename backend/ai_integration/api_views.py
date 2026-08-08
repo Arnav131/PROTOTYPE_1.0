@@ -123,37 +123,22 @@ def predict_view(request):
     service = PredictionService()
     response = service.predict_from_dict(data)
 
-    # Optional: auto-create alert
+    # Optional: auto-create alert and ticket
     auto_alert = request.GET.get("auto_alert", "").lower() == "true"
     auto_ticket = request.GET.get("auto_ticket", "").lower() == "true"
+    
     alert_id = None
-
-    if auto_alert and response.is_anomaly and data.get("track_section_id"):
-        from ai_integration.alert_service import AlertService
-
-        alert_service = AlertService()
-        alert_id = alert_service.create_anomaly_alert(
+    if (auto_alert or auto_ticket) and data.get("track_section_id"):
+        from ai_integration.incident_orchestrator import IncidentOrchestrator
+        
+        orchestrator = IncidentOrchestrator()
+        incident_result = orchestrator.process_prediction(
             response=response,
             track_section_id=data["track_section_id"],
+            auto_alert=auto_alert,
+            auto_ticket=auto_ticket
         )
-
-        # Also check for predictive alert
-        if response.needs_alert:
-            alert_service.create_predictive_alert(
-                response=response,
-                track_section_id=data["track_section_id"],
-            )
-
-    # Optional: auto-create ticket
-    if auto_ticket and alert_id and data.get("track_section_id"):
-        from ai_integration.ticket_service import TicketService
-
-        ticket_service = TicketService()
-        ticket_service.create_ticket_from_prediction(
-            response=response,
-            track_section_id=data["track_section_id"],
-            alert_id=alert_id,
-        )
+        alert_id = incident_result.get("alert_id")
 
     result = format_prediction_response(response)
     if alert_id:
@@ -231,6 +216,28 @@ def health_view(request):
         }
     """
     health = PredictionService.get_health()
+    
+    # Enrich with additional metadata required by Health API audit
+    try:
+        from django.conf import settings
+        service = PredictionService()
+        meta = service.get_provider_metadata()
+        provider_name = health.get("default_provider", "unknown")
+        provider_info = health.get("providers", {}).get(provider_name, {})
+        
+        health["sensor_source"] = getattr(settings, 'SENSOR_SOURCE_CLASS', 'unknown')
+        health["provider_name"] = provider_name
+        health["model_version"] = meta.get("model_version", "unknown")
+        health["window_size"] = meta.get("window_size", "unknown")
+        health["provider_status"] = provider_info.get("status", "unknown")
+        health["buffer_status"] = provider_info.get("active_buffers", 0)
+        health["capabilities"] = meta.get("supported_features", [])
+    except Exception as e:
+        import logging
+        logger = logging.getLogger("rakshak.ai_integration.api_views")
+        logger.error(f"Failed to enrich health API: {e}")
+        health["metadata_error"] = str(e)
+        
     return JsonResponse(format_health_response(health))
 
 
