@@ -37,6 +37,7 @@ INSTALLED_APPS = [
     'tickets',
     'map_view',
     'railway',
+    'bounty',
 ]
 
 MIDDLEWARE = [

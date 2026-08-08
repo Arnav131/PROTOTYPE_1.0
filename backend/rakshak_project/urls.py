@@ -19,5 +19,6 @@ urlpatterns = [
     path('map/', include('map_view.urls')),
     path('api/', include('map_view.api_urls')),
     path('api/predict/', include('sensors.api_urls')),
+    path('bounty/', include('bounty.urls')),
 ]
 

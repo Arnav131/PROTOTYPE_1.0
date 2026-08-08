@@ -37,6 +37,12 @@ def navigation(request):
             'icon': 'map',
             'description': 'Railway Network',
         },
+        {
+            'name': 'Agent Tasks',
+            'url': '/bounty/',
+            'icon': 'agent_tasks',
+            'description': 'Task Checklist & Review',
+        },
     ]
     current_path = request.path
     for item in nav_items:
