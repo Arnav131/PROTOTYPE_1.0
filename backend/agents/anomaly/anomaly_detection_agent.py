@@ -1,21 +1,67 @@
 """
 Rakshak Agent System — Anomaly Detection Agent
 =================================================
-Anomaly detection agent that wraps the SimpleRakshakInferencePipeline.
+3-tier anomaly detection pipeline that uses the AI Integration Layer
+to run predictions and writes results to Django models.
 
-Uses the trained PyTorch MLP models (anomaly_model.pkl, fault_model.pkl)
-for inference, with a transparent rule-layer for safety overrides.
-Falls back to pure rule-based predictions if models are unavailable.
+ARCHITECTURE:
+    SensorValidatedEvent
+        ↓
+    AnomalyDetectionAgent.process()
+        ↓
+    PredictionService.predict_for_sensor()     ← AI-agnostic service
+        ↓
+    AIProviderRegistry → BaseAIProvider         ← Provider abstraction
+        ↓
+    PredictionResponse                          ← Standardized result
+        ↓
+    Alert creation (if anomaly detected)
+    Predictive alert (if failure predicted)
+
+PREVIOUS ARCHITECTURE (before Sprint 2):
+    This agent previously imported directly from:
+        ai_engin.inference.pipeline.RakshakInferencePipeline
+    That created a hard coupling to the local pickle model.
+
+CURRENT ARCHITECTURE (after Sprint 2):
+    This agent now uses:
+        ai_integration.prediction_service.PredictionService
+    The backend can now switch AI providers by changing settings.py
+    without touching this agent.
+
+Tier 1: Z-score + IQR (< 5ms) → fast statistical screen
+Tier 2: Isolation Forest (< 50ms) → multivariate
+Tier 3: VAE reconstruction (< 150ms) → deep learning
+Meta:   GBM combining all tiers → calibrated probability
+
+# ---------------------------------------------------------------------------
+# DATABASE MIGRATION NOTE
+#
+# This agent creates Alert records via Alert.objects.create()
+# and writes AuditLog entries via self.log_event().
+#
+# Current DB: SQLite
+# Future DB: PostgreSQL
+#
+# Why this code exists:
+#   Creates anomaly and predictive alerts from AI predictions.
+#
+# PostgreSQL compatible: YES
+#   - transaction.atomic() works identically in PostgreSQL
+#   - DecimalField for confidence_score is native PostgreSQL
+#   - CharField with unique=True for alert_code works identically
+#   - DateTimeField for generated_at works identically
+#
+# Whether teammate needs to modify anything: NO
+# ---------------------------------------------------------------------------
 """
 
 import logging
-import os
 from decimal import Decimal
 from typing import Any, Dict, Optional
 
 from django.db import transaction
 from django.utils import timezone
-from django.conf import settings
 
 from agents.shared.base_agent import BaseAgent
 from agents.shared.events import AnomalyEvent, SensorValidatedEvent
@@ -27,16 +73,14 @@ class AnomalyDetectionAgent(BaseAgent):
     """
     Anomaly detection agent backed by SimpleRakshakInferencePipeline.
 
-    Receives SensorValidatedEvents (or raw dicts) with sensor values,
-    runs inference through the simple pipeline, creates Alert objects
-    for detected anomalies, and emits AnomalyEvents for downstream agents.
+    Receives SensorValidatedEvents from the ingestion agent,
+    runs predictions through the AI Integration Layer, and
+    creates Alert objects for detected anomalies.
 
-    The pipeline handles:
-        - Feature engineering (4 raw sensors → 22 engineered features)
-        - Feature scaling (scaler stored inside .pkl)
-        - PyTorch MLP inference (anomaly + fault classification)
-        - Rule-layer safety overrides
-        - Fallback to rule-only mode if models are missing
+    IMPORTANT:
+        This agent does NOT directly import or use the AI Engine.
+        It calls PredictionService, which calls the provider registry,
+        which calls the configured AI provider (local, cloud, LLM, etc.).
 
     From agents_README:
         Autonomy: Event-driven
@@ -44,48 +88,37 @@ class AnomalyDetectionAgent(BaseAgent):
     """
 
     AGENT_NAME = "anomaly_detection"
-    AGENT_VERSION = "1.1.0"
+    AGENT_VERSION = "2.0.0"  # Bumped: now uses AI Integration Layer
 
     def __init__(self, config: Optional[Dict] = None):
         super().__init__(config)
-        self._pipeline = None
+        self._prediction_service = None
         self._alert_counter = 0
 
-        # Model directory — defaults to backend/ai_models/
-        self._model_dir = self.config.get(
-            "model_dir",
-            os.path.join(settings.BASE_DIR, "ai_models")
-        )
+    def _ensure_prediction_service(self):
+        """
+        Lazy-initialize the PredictionService.
 
-    def _ensure_pipeline(self):
-        """Lazy-load the SimpleRakshakInferencePipeline."""
-        if self._pipeline is not None:
+        PREVIOUS: Directly loaded RakshakInferencePipeline from ai_engin/
+        NOW: Creates a PredictionService that delegates to the configured
+             AI provider via the registry.
+
+        The import is deferred to avoid circular imports and to allow
+        the agent to be instantiated even when AI dependencies are
+        not installed.
+        """
+        if self._prediction_service is not None:
             return
 
         try:
-            # Try the singleton first (shared with the API layer)
-            from ai_models import get_pipeline
-            self._pipeline = get_pipeline()
-            if self._pipeline is not None:
-                logger.info(f"[{self.AGENT_NAME}] Using shared AI pipeline singleton")
-                return
-        except ImportError:
-            pass
-
-        # Fall back to creating our own instance
-        try:
-            from ai_models.simple_pipeline import SimpleRakshakInferencePipeline
-            self._pipeline = SimpleRakshakInferencePipeline(
-                model_dir=self._model_dir,
-            )
-            health = self._pipeline.health_check()
-            logger.info(
-                f"[{self.AGENT_NAME}] AI pipeline loaded — "
-                f"mode: {health['mode']}, version: {health.get('model_version', 'n/a')}"
-            )
+            from ai_integration.prediction_service import PredictionService
+            self._prediction_service = PredictionService()
+            logger.info(f"[{self.AGENT_NAME}] PredictionService initialized")
         except Exception as e:
-            logger.error(f"[{self.AGENT_NAME}] Failed to load AI pipeline: {e}")
-            self._pipeline = None
+            logger.error(
+                f"[{self.AGENT_NAME}] Failed to initialize PredictionService: {e}"
+            )
+            self._prediction_service = None
 
     def _generate_alert_code(self) -> str:
         """Generate a unique alert code."""
@@ -95,7 +128,14 @@ class AnomalyDetectionAgent(BaseAgent):
 
     def process(self, data: Any) -> Dict:
         """
-        Process a sensor event through the anomaly detection pipeline.
+        Process a sensor event through the AI-agnostic prediction pipeline.
+
+        FLOW:
+            1. Extract sensor values from event/dict
+            2. Call PredictionService.predict_for_sensor()
+            3. If anomaly → create Alert
+            4. If failure prediction → create predictive Alert
+            5. Return structured response
 
         Args:
             data: SensorValidatedEvent or dict with sensor values:
@@ -104,10 +144,22 @@ class AnomalyDetectionAgent(BaseAgent):
 
         Returns:
             Dict with anomaly detection results and optional alert_id
-        """
-        self._ensure_pipeline()
 
-        # Extract sensor values from event or dict
+        # ---------------------------------------------------------------
+        # DATABASE MIGRATION NOTE
+        #
+        # This method creates Alert objects (via _create_alert and
+        # _create_predictive_alert) which INSERT into rakshak_alert.
+        #
+        # Current DB: SQLite
+        # Future DB: PostgreSQL
+        # PostgreSQL compatible: YES
+        # Teammate action: NONE
+        # ---------------------------------------------------------------
+        """
+        self._ensure_prediction_service()
+
+        # --- Extract sensor values ---
         if isinstance(data, SensorValidatedEvent):
             sensor_id = data.sensor_id
             track_section_id = data.track_section_id
@@ -129,88 +181,144 @@ class AnomalyDetectionAgent(BaseAgent):
                 "gauge_width": data.get("gauge_width", 0),
             }
 
-        # Run inference
-        if self._pipeline is None:
+        # --- Run prediction through AI Integration Layer ---
+        if self._prediction_service is None:
             return {
                 "anomaly_detected": False,
-                "error": "AI pipeline not loaded",
+                "error": "PredictionService not available",
                 "sensor_id": sensor_id,
             }
 
-        # SimpleRakshakInferencePipeline.predict() returns a flat dict:
-        #   {anomaly_score, is_anomaly, alert_level, fault_type,
-        #    fault_confidence, explanation, processing_time_ms, model_used, ...}
-        result = self._pipeline.predict(**values)
+        # This is the key decoupling point:
+        # We call predict_for_sensor() instead of pipeline.process_reading().
+        # The PredictionService handles provider selection, error handling,
+        # and returns a PredictionResponse regardless of which AI backend
+        # is configured (local pickle, cloud API, LLM, etc.).
+        response = self._prediction_service.predict_for_sensor(
+            sensor_id=str(sensor_id or "default"),
+            ambient_temp=values["ambient_temp"],
+            humidity=values["humidity"],
+            vibration_rms=values["vibration_rms"],
+            gauge_width=values["gauge_width"],
+            track_section_id=track_section_id,
+        )
 
-        # Build response
-        response = {
-            "anomaly_detected": result.get("is_anomaly", False),
-            "anomaly_score": result.get("anomaly_score", 0.0),
-            "alert_level": result.get("alert_level", "none"),
-            "fault_type": result.get("fault_type", "unknown"),
-            "fault_confidence": result.get("fault_confidence", 0.0),
-            "explanation": result.get("explanation", ""),
-            "processing_time_ms": result.get("processing_time_ms", 0.0),
-            "model_used": result.get("model_used", "unknown"),
+        # --- Handle buffering state ---
+        # When the provider is accumulating readings into a window,
+        # it returns a response with metadata["status"] == "buffering".
+        if response.metadata.get("status") == "buffering":
+            return {
+                "anomaly_detected": False,
+                "buffering": True,
+                "sensor_id": sensor_id,
+            }
+
+        # --- Handle errors ---
+        if response.metadata.get("error"):
+            return {
+                "anomaly_detected": False,
+                "error": response.metadata["error"],
+                "sensor_id": sensor_id,
+            }
+
+        # --- Build response dict ---
+        result = {
+            "anomaly_detected": response.is_anomaly,
+            "anomaly_score": response.anomaly_score,
+            "tier_scores": response.metadata.get("tier_scores", {}),
+            "failure_prediction": {
+                "probabilities": response.failure_probabilities,
+                "uncertainty": response.metadata.get("uncertainty", {}),
+                "alert_level": response.alert_level,
+            },
+            "processing_time_ms": response.processing_time_ms,
             "sensor_id": sensor_id,
+            "provider": response.provider_name,
         }
 
-        # Include fault top-k if available
-        if "fault_top_k" in result:
-            response["fault_top_k"] = result["fault_top_k"]
-
-        # Include rule triggers if available
-        if "rule_triggers" in result:
-            response["rule_triggers"] = result["rule_triggers"]
-
-        # If anomaly detected → create Alert in DB
-        if result.get("is_anomaly") and track_section_id:
-            alert_id = self._create_alert(
+        # --- If anomaly detected → create Alert ---
+        if response.is_anomaly and track_section_id:
+            alert_id = self._create_alert_from_response(
                 track_section_id=track_section_id,
                 sensor_id=sensor_id,
                 reading_id=reading_id,
-                result=result,
+                response=response,
             )
-            response["alert_id"] = alert_id
+            result["alert_id"] = alert_id
+
+            # Add fault classification
+            if response.fault_type != "unknown":
+                result["fault_type"] = response.fault_type
+                result["fault_confidence"] = response.fault_confidence
+                result["fault_top_k"] = response.metadata.get("fault_top_k", [])
 
             # Emit event for downstream agents
-            response["event"] = AnomalyEvent(
+            result["event"] = AnomalyEvent(
                 alert_id=alert_id,
                 track_section_id=track_section_id,
-                sensor_id=sensor_id or 0,
-                anomaly_score=result.get("anomaly_score", 0.0),
+                sensor_id=sensor_id,
+                anomaly_score=response.anomaly_score,
                 is_anomaly=True,
-                fault_type=result.get("fault_type", ""),
-                fault_confidence=result.get("fault_confidence", 0.0),
+                tier_scores=response.metadata.get("tier_scores", {}),
+                fault_type=response.fault_type,
+                fault_confidence=response.fault_confidence,
                 detected_at=timezone.now().isoformat(),
             )
 
-        return response
+        # --- If failure prediction is concerning → create predictive alert ---
+        if response.needs_alert and track_section_id:
+            self._create_predictive_alert_from_response(
+                track_section_id=track_section_id,
+                sensor_id=sensor_id,
+                response=response,
+            )
 
-    def _create_alert(
+        return result
+
+    def _create_alert_from_response(
         self,
         track_section_id: int,
         sensor_id: Optional[int],
         reading_id: Optional[int],
-        result: dict,
+        response,
     ) -> int:
-        """Create an Alert record for a detected anomaly."""
+        """
+        Create an Alert record from a PredictionResponse.
+
+        PREVIOUS: Accepted raw PredictionResult from ai_engin.
+        NOW: Accepts PredictionResponse from the AI Integration Layer.
+
+        # ---------------------------------------------------------------
+        # DATABASE MIGRATION NOTE
+        #
+        # Inserts into: rakshak_alert
+        # Uses: transaction.atomic(), Alert.objects.create()
+        #
+        # Current DB: SQLite
+        # Future DB: PostgreSQL
+        # PostgreSQL compatible: YES
+        # Teammate action: NONE
+        # ---------------------------------------------------------------
+        """
         from railway.models import Alert
 
         # Determine severity from anomaly score
-        score = result.get("anomaly_score", 0.0)
-        alert_level = result.get("alert_level", "none")
-
-        if alert_level == "critical" or score >= 0.9:
-            severity = "critical"
-        elif alert_level == "warning" or score >= 0.7:
-            severity = "warning"
+        score = response.anomaly_score
+        if score >= 0.9:
+            severity = Alert.Severity.CRITICAL
+        elif score >= 0.7:
+            severity = Alert.Severity.WARNING
         else:
             severity = "info"
 
-        fault_type = result.get("fault_type", "unknown")
-        fault_confidence = result.get("fault_confidence", 0.0)
-        explanation = result.get("explanation", "")
+        fault_info = ""
+        if response.fault_type != "unknown":
+            fault_info = (
+                f" | Fault: {response.fault_type} "
+                f"({response.fault_confidence:.1%})"
+            )
+
+        tier_scores = response.metadata.get("tier_scores", {})
 
         with transaction.atomic():
             alert = Alert.objects.create(
@@ -222,18 +330,84 @@ class AnomalyDetectionAgent(BaseAgent):
                 severity=severity,
                 title=f"Anomaly Detected: {fault_type} (score: {score:.2f})",
                 description=(
-                    f"AI pipeline anomaly detection.\n"
-                    f"Score: {score:.4f} | Alert level: {alert_level}\n"
-                    f"Fault: {fault_type} ({fault_confidence:.1%})\n"
-                    f"Model: {result.get('model_used', 'unknown')}\n"
-                    f"Explanation: {explanation}"
+                    f"AI anomaly detection triggered.\n"
+                    f"Score: {score:.4f}\n"
+                    f"Tier scores: {tier_scores}{fault_info}\n"
+                    f"Provider: {response.provider_name}"
                 ),
                 confidence_score=Decimal(str(round(score, 4))),
                 generated_at=timezone.now(),
                 generated_by="ml_model",
             )
 
-        self.log_event("create", "alert", alert.pk, f"Anomaly alert: score={score:.4f}")
-        logger.info(f"[{self.AGENT_NAME}] Created alert {alert.alert_code} (severity={severity})")
+        self.log_event(
+            "create", "alert", alert.pk,
+            f"Anomaly alert: score={score:.4f} provider={response.provider_name}",
+        )
+        logger.info(
+            f"[{self.AGENT_NAME}] Created alert {alert.alert_code} "
+            f"(severity={severity}, provider={response.provider_name})"
+        )
 
         return alert.pk
+
+    def _create_predictive_alert_from_response(
+        self,
+        track_section_id: int,
+        sensor_id: Optional[int],
+        response,
+    ):
+        """
+        Create a predictive alert from a PredictionResponse.
+
+        PREVIOUS: Accepted raw PredictionResult from ai_engin.
+        NOW: Accepts PredictionResponse from the AI Integration Layer.
+
+        # ---------------------------------------------------------------
+        # DATABASE MIGRATION NOTE
+        #
+        # Inserts into: rakshak_alert
+        # Uses: transaction.atomic(), Alert.objects.create()
+        #
+        # Current DB: SQLite
+        # Future DB: PostgreSQL
+        # PostgreSQL compatible: YES
+        # Teammate action: NONE
+        # ---------------------------------------------------------------
+        """
+        from railway.models import Alert
+
+        probs = response.failure_probabilities
+        max_horizon = response.most_urgent_horizon or "unknown"
+        max_prob = response.max_failure_probability
+
+        severity = (
+            Alert.Severity.CRITICAL
+            if response.alert_level == "critical"
+            else Alert.Severity.WARNING
+        )
+
+        with transaction.atomic():
+            alert = Alert.objects.create(
+                alert_code=self._generate_alert_code(),
+                track_section_id=track_section_id,
+                sensor_id=sensor_id,
+                alert_type=Alert.AlertType.PREDICTION,
+                severity=severity,
+                title=f"Failure Predicted within {max_horizon} (P={max_prob:.1%})",
+                description=(
+                    f"Multi-horizon failure prediction:\n"
+                    + "\n".join(f"  {h}: {p:.1%}" for h, p in probs.items())
+                    + f"\nAlert level: {response.alert_level}"
+                    + f"\nProvider: {response.provider_name}"
+                ),
+                confidence_score=Decimal(str(round(max_prob, 4))),
+                generated_at=timezone.now(),
+                generated_by=Alert.GeneratedBy.ML_MODEL,
+            )
+
+        self.log_event(
+            "create", "alert", alert.pk,
+            f"Predictive alert: {max_horizon}={max_prob:.4f} "
+            f"provider={response.provider_name}",
+        )

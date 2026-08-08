@@ -3,3 +3,5 @@
 # Only Django is required for the prototype dashboard.
 
 Django>=4.2,<5.0
+psycopg[binary]>=3.1
+python-dotenv>=1.0
