@@ -22,8 +22,5 @@ urlpatterns = [
     path('map/', include('map_view.urls')),
     path('api/', include('map_view.api_urls')),
     path('api/predict/', include('sensors.api_urls')),
-    # AI Integration Layer — prediction, health, provider endpoints
-    path('api/ai/', include('ai_integration.api_urls')),
-    # Journey Simulation — hackathon demo endpoints
-    path('api/journey/', include('ai_integration.journey_urls')),
+    path('bounty/', include('bounty.urls')),
 ]

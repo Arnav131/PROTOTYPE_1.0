@@ -45,9 +45,7 @@ INSTALLED_APPS = [
     'tickets',
     'map_view',
     'railway',
-    # AI Integration Layer — provider-agnostic AI abstraction.
-    # Has NO models, NO migrations, NO database tables.
-    'ai_integration',
+    'bounty',
 ]
 
 MIDDLEWARE = [

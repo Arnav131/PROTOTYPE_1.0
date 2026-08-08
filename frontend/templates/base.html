@@ -77,33 +77,33 @@
             </div>
         </header>
 
-        <!-- ================================================================== -->
-        <!-- NAVIGATION BAR                                                     -->
-        <!-- ================================================================== -->
-        <nav class="control-nav" id="main-nav">
-            <div class="nav-inner">
-                {% for item in nav_items %}
-                <a href="{{ item.url }}"
-                class="nav-item {% if item.active %}nav-item--active{% endif %}"
-                id="nav-{{ item.icon }}">
-                    <span class="nav-icon">
-                        {% if item.icon == 'dashboard' %}
-                        {% elif item.icon == 'alerts' %}
-                        {% elif item.icon == 'tickets' %}
-                        {% elif item.icon == 'map' %}
-                        {% elif item.icon == 'admin' %}
-                        {% endif %}
-                    </span>
-                    <span class="nav-label">{{ item.name }}</span>
-                    <span class="nav-desc">{{ item.description }}</span>
-                </a>
-                {% endfor %}
-            </div>
-            <!-- Mobile hamburger toggle -->
-            <button class="nav-toggle" id="nav-toggle" aria-label="Toggle navigation">
-                <span></span><span></span><span></span>
-            </button>
-        </nav>
+    <!-- ================================================================== -->
+    <!-- NAVIGATION BAR                                                     -->
+    <!-- ================================================================== -->
+    <nav class="control-nav" id="main-nav">
+        <div class="nav-inner">
+            {% for item in nav_items %}
+            <a href="{{ item.url }}"
+               class="nav-item {% if item.active %}nav-item--active{% endif %}"
+               id="nav-{{ item.icon }}">
+                <span class="nav-icon">
+                    {% if item.icon == 'dashboard' %}📊
+                    {% elif item.icon == 'alerts' %}🔔
+                    {% elif item.icon == 'tickets' %}🎫
+                    {% elif item.icon == 'map' %}🗺️
+                    {% elif item.icon == 'agent_tasks' %}🤖
+                    {% endif %}
+                </span>
+                <span class="nav-label">{{ item.name }}</span>
+                <span class="nav-desc">{{ item.description }}</span>
+            </a>
+            {% endfor %}
+        </div>
+        <!-- Mobile hamburger toggle -->
+        <button class="nav-toggle" id="nav-toggle" aria-label="Toggle navigation">
+            <span></span><span></span><span></span>
+        </button>
+    </nav>
 
         <!-- ================================================================== -->
         <!-- MAIN CONTENT AREA                                                  -->

@@ -25,6 +25,12 @@ def navigation(request):
             'icon': 'map',
             'description': 'Railway Network',
         },
+        {
+            'name': 'Agent Tasks',
+            'url': '/bounty/',
+            'icon': 'agent_tasks',
+            'description': 'Task Checklist & Review',
+        },
     ]
     
     # Add admin link for staff users
