@@ -10,6 +10,7 @@ var rakshakMap = null;
 var mainRailwayGeoJsonLayer = null;
 var glowLayerGroup = null;
 var stationLayerGroup = null;
+var rakshakBasemapLayer = null;
 
 var g_railwayMajorData = null;
 var g_railwayFullData = null;
@@ -41,11 +42,8 @@ function initRakshakControlMap() {
         attributionControl: false // Custom attribution added below
     });
 
-    // Dark Matter basemap — no competing bright roads or labels
-    L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
-        subdomains: 'abcd',
-        maxZoom: 19
-    }).addTo(rakshakMap);
+    // Base Tile Layer initialization depends on the current theme
+    updateRakshakMapTheme();
 
     // Custom OpenStreetMap & RAKSHAK attribution
     L.control.attribution({
@@ -229,6 +227,7 @@ function _renderTracksData() {
     glowLayerGroup.clearLayers();
 
     var currentZoom = rakshakMap.getZoom();
+    var isDark = document.documentElement.getAttribute('data-theme') !== 'light';
     // Choose data source based on zoom level for maximum performance & detail
     var activeDataset = (currentZoom < 7 && g_railwayMajorData) ? g_railwayMajorData : g_railwayFullData;
     if (!activeDataset || !activeDataset.features) return;
@@ -237,14 +236,14 @@ function _renderTracksData() {
 
     // Dynamic weight & color based on zoom
     var baseWeight = 0.9;
-    var baseColor  = '#475569'; // Muted blue-gray
+    var baseColor  = isDark ? '#475569' : '#64748b'; // Slightly darker for light mode contrast
 
     if (currentZoom >= 7 && currentZoom <= 9) {
         baseWeight = 1.4;
-        baseColor  = '#64748b';
+        baseColor  = isDark ? '#64748b' : '#334155';
     } else if (currentZoom >= 10) {
         baseWeight = 2.2;
-        baseColor  = '#8193a8';
+        baseColor  = isDark ? '#8193a8' : '#1e293b';
     }
 
     // Single unified Leaflet GeoJSON layer using HTML5 Canvas renderer
@@ -407,32 +406,32 @@ function _renderCriticalAssetInspector(crit) {
     if (!container) return;
 
     var historyHtml = crit.maintenance_history.map(function(item) {
-        return '<div style="font-size:0.75rem;color:#cbd5e1;padding:2px 0;">' + item + '</div>';
+        return '<div style="font-size:0.75rem;color:var(--text-primary);padding:2px 0;">' + item + '</div>';
     }).join('');
 
     container.innerHTML =
         '<div class="asset-title">' +
             '<span>ASSET: ' + crit.sensor_id + '</span>' +
-            '<span class="risk-tag">HIGH (' + crit.failure_risk + ')</span>' +
+            '<span class="risk-tag high">HIGH (' + crit.failure_risk + ')</span>' +
         '</div>' +
 
         '<div class="prop-group">' +
             '<div class="prop-row"><span class="prop-key">ZONE</span><span class="prop-val">' + crit.zone + '</span></div>' +
-            '<div class="prop-row"><span class="prop-key">STATUS</span><span class="prop-val" style="color:#ef4444">' + crit.status + '</span></div>' +
-            '<div class="prop-row"><span class="prop-key">CURRENT READING</span><span class="prop-val" style="color:#ef4444">' + crit.reading + '</span></div>' +
+            '<div class="prop-row"><span class="prop-key">STATUS</span><span class="prop-val" style="color:var(--critical)">' + crit.status + '</span></div>' +
+            '<div class="prop-row"><span class="prop-key">CURRENT READING</span><span class="prop-val" style="color:var(--critical)">' + crit.reading + '</span></div>' +
             '<div class="prop-row"><span class="prop-key">LAT, LNG</span><span class="prop-val">' + crit.position.lat.toFixed(4) + ', ' + crit.position.lng.toFixed(4) + '</span></div>' +
         '</div>' +
 
         '<div class="waveform-box">' +
             '<div class="waveform-header">' +
                 '<span>SIGNAL WAVEFORM</span>' +
-                '<span style="color:#ef4444">SPIKE DETECTED</span>' +
+                '<span style="color:var(--critical)">SPIKE DETECTED</span>' +
             '</div>' +
             '<canvas id="waveform-canvas"></canvas>' +
         '</div>' +
 
         '<div class="prop-group">' +
-            '<div style="font-family:\'JetBrains Mono\',monospace;font-size:0.7rem;color:#64748b;font-weight:600;margin-bottom:4px;">MAINTENANCE HISTORY</div>' +
+            '<div style="font-family:\'JetBrains Mono\',monospace;font-size:0.7rem;color:var(--text-secondary);font-weight:600;margin-bottom:4px;">MAINTENANCE HISTORY</div>' +
             historyHtml +
         '</div>' +
 
@@ -449,6 +448,15 @@ function _drawWaveformCanvas(waveform) {
     if (!canvas) return;
     var ctx = canvas.getContext('2d');
 
+    // Store globally so theme toggle can redraw it
+    if (waveform) {
+        window.rakshakCurrentWaveform = waveform;
+    } else {
+        waveform = window.rakshakCurrentWaveform;
+    }
+    
+    var isDark = document.documentElement.getAttribute('data-theme') !== 'light';
+
     canvas.width = canvas.offsetWidth || 230;
     canvas.height = canvas.offsetHeight || 55;
 
@@ -457,7 +465,8 @@ function _drawWaveformCanvas(waveform) {
 
     ctx.clearRect(0, 0, w, h);
 
-    ctx.strokeStyle = '#151d2f';
+    // Dynamic grid color based on theme
+    ctx.strokeStyle = isDark ? '#1e293b' : '#cbd5e1';
     ctx.lineWidth = 1;
 
     for (var x = 0; x < w; x += 20) {
@@ -487,7 +496,10 @@ function _drawWaveformCanvas(waveform) {
         else ctx.lineTo(px, py);
     });
 
-    ctx.strokeStyle = '#ef4444';
+    var style = getComputedStyle(document.documentElement);
+    var criticalColor = style.getPropertyValue('--critical').trim() || '#F04B55';
+    
+    ctx.strokeStyle = criticalColor;
     ctx.stroke();
 }
 
@@ -495,12 +507,12 @@ function _renderTrackInspector(props, status) {
     var container = document.getElementById('inspector-content');
     if (!container) return;
 
-    var statusColor = (status === 'critical') ? '#ef4444' : (status === 'warning' ? '#f59e0b' : '#10b981');
+    var statusColor = (status === 'critical') ? 'var(--critical)' : (status === 'warning' ? 'var(--warning)' : 'var(--success)');
 
     container.innerHTML =
         '<div class="asset-title">' +
             '<span>RAILWAY TRACK</span>' +
-            '<span class="risk-tag" style="background:rgba(56,189,248,0.1);color:#38bdf8;border-color:rgba(56,189,248,0.3)">' + (props.ref || 'OSM') + '</span>' +
+            '<span class="risk-tag info">' + (props.ref || 'OSM') + '</span>' +
         '</div>' +
 
         '<div class="prop-group">' +
@@ -515,9 +527,9 @@ function _renderTrackInspector(props, status) {
             '<div class="prop-row"><span class="prop-key">MAX SPEED</span><span class="prop-val">' + (props.maxspeed || 'Not available') + '</span></div>' +
         '</div>' +
 
-        '<div class="action-card" style="background:rgba(15,23,42,0.6);border-color:#1e293b">' +
-            '<div class="action-card-title" style="color:#94a3b8">RAKSHAK MONITORED CORRIDOR</div>' +
-            '<div style="font-size:0.75rem;color:#cbd5e1;margin-top:4px;">OSM Geometry Verified • Live Sensor Overlay Active</div>' +
+        '<div class="action-card" style="background:var(--accent-dim);border-color:var(--border)">' +
+            '<div class="action-card-title" style="color:var(--text-secondary)">RAKSHAK MONITORED CORRIDOR</div>' +
+            '<div style="font-size:0.75rem;color:var(--text-primary);margin-top:4px;">OSM Geometry Verified • Live Sensor Overlay Active</div>' +
         '</div>';
 }
 
@@ -528,7 +540,7 @@ function _renderStationInspector(props) {
     container.innerHTML =
         '<div class="asset-title">' +
             '<span>STATION DETAILS</span>' +
-            '<span class="risk-tag" style="background:rgba(16,185,129,0.1);color:#10b981;border-color:rgba(16,185,129,0.3)">' + (props.ref || 'OSM') + '</span>' +
+            '<span class="risk-tag info" style="background:var(--success-dim);color:var(--success);border-color:var(--success)">' + (props.ref || 'OSM') + '</span>' +
         '</div>' +
 
         '<div class="prop-group">' +
@@ -567,4 +579,44 @@ function _startClock() {
     }
     tick();
     setInterval(tick, 1000);
+}
+
+// ================================================================
+// THEME SWITCHING (DARK / LIGHT MAP TILES)
+// ================================================================
+
+function updateRakshakMapTheme() {
+    if (!rakshakMap) return;
+
+    var isDark = document.documentElement.getAttribute('data-theme') !== 'light';
+    
+    // Light and Dark tile URLs (CartoDB)
+    var tileUrl = isDark 
+        ? 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png'
+        : 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png';
+
+    if (rakshakBasemapLayer) {
+        rakshakMap.removeLayer(rakshakBasemapLayer);
+    }
+
+    rakshakBasemapLayer = L.tileLayer(tileUrl, {
+        subdomains: 'abcd',
+        maxZoom: 19
+    }).addTo(rakshakMap);
+
+    // Ensure the base tile layer stays behind all vector layers
+    if (rakshakBasemapLayer.setZIndex) {
+        rakshakBasemapLayer.setZIndex(0);
+    }
+
+    // Refresh track colors to adapt to new background contrast
+    if (g_railwayFullData) {
+        _renderTracksData();
+    }
+    
+    // Refresh waveform chart if present
+    var canvas = document.getElementById('waveform-canvas');
+    if (canvas && window.rakshakCurrentWaveform) {
+        _drawWaveformCanvas(window.rakshakCurrentWaveform);
+    }
 }

@@ -1,0 +1,139 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}{{ task.title }} | Rakshak Phase 1{% endblock %}
+
+{% block page_title %}Task Review: {{ task.task_id }}{% endblock %}
+
+{% block content %}
+
+<div class="detail-container">
+    <div class="top-actions">
+        <a href="{% url 'task_list' %}" class="btn btn-secondary">← Back to Tasks</a>
+        <a href="{% url 'task_print' task.task_id %}" target="_blank" class="btn btn-primary">🖨 Print / Export PDF</a>
+    </div>
+
+    <div class="grid-layout">
+        <div class="main-column">
+            <div class="card">
+                <div class="task-header">
+                    <h1 class="task-title">{{ task.title }}</h1>
+                    <p class="task-desc">{{ task.description }}</p>
+                </div>
+                
+                <div class="meta-grid">
+                    <div class="meta-item">
+                        <span class="meta-label">Section</span>
+                        <span class="meta-val">{{ task.section }}</span>
+                    </div>
+                    <div class="meta-item">
+                        <span class="meta-label">Owner</span>
+                        <span class="meta-val">{{ task.owner }}</span>
+                    </div>
+                    <div class="meta-item">
+                        <span class="meta-label">Status</span>
+                        <span class="meta-val" style="color: var(--accent-cyan)">{{ task.status }}</span>
+                    </div>
+                    <div class="meta-item">
+                        <span class="meta-label">Created At</span>
+                        <span class="meta-val">{{ task.created_at|date:"M d, Y H:i" }}</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card">
+                <h2 class="card-title">Source Checklist</h2>
+                
+                <div class="progress-container">
+                    <div class="progress-header">
+                        <span>Data Readiness</span>
+                        <span>{{ completion_percentage }}%</span>
+                    </div>
+                    <div class="progress-bar">
+                        <div class="progress-fill" style="width: {{ completion_percentage }}%;"></div>
+                    </div>
+                </div>
+
+                <div class="checklist">
+                    {% for source in task.sources %}
+                    <div class="check-item">
+                        <div>
+                            <div class="check-name">{{ source.name }}</div>
+                            <div class="check-type">{{ source.type }}</div>
+                        </div>
+                        <span class="status-badge 
+                            {% if source.status == 'Ready' %}badge-ready
+                            {% elif source.status == 'Missing' %}badge-missing
+                            {% elif source.status == 'Needs Review' %}badge-needsreview
+                            {% else %}badge-optional{% endif %}">
+                            {{ source.status }}
+                        </span>
+                    </div>
+                    {% empty %}
+                    <div style="color: var(--text-secondary); text-align: center; padding: 20px;">
+                        No sources listed for this task.
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+
+        <div class="side-column">
+            {% if task.warnings %}
+            <div class="card">
+                <h2 class="card-title" style="color: var(--status-warning); border-bottom-color: rgba(255, 178, 26, 0.2);">⚠ Validation Warnings</h2>
+                <ul class="warning-list">
+                    {% for w in task.warnings %}
+                    <li class="warning-item">{{ w }}</li>
+                    {% endfor %}
+                </ul>
+            </div>
+            {% endif %}
+
+            <div class="card">
+                <h2 class="card-title">Review Notes</h2>
+                <form id="notes-form" class="notes-form" method="POST" action="{% url 'task_update_notes' task.task_id %}">
+                    {% csrf_token %}
+                    <textarea name="review_notes" class="notes-textarea" placeholder="Add your review notes, approvals, or required reworks here...">{{ task.review_notes|default_if_none:"" }}</textarea>
+                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                        <span id="save-msg" class="save-feedback">Notes saved!</span>
+                        <button type="submit" class="btn btn-secondary">Save Notes</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    document.getElementById('notes-form').addEventListener('submit', function(e) {
+        e.preventDefault();
+        const form = this;
+        const formData = new FormData(form);
+        const btn = form.querySelector('button');
+        const msg = document.getElementById('save-msg');
+        
+        btn.textContent = 'Saving...';
+        btn.disabled = true;
+
+        fetch(form.action, {
+            method: 'POST',
+            body: formData,
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest'
+            }
+        }).then(res => res.json())
+        .then(data => {
+            btn.textContent = 'Save Notes';
+            btn.disabled = false;
+            msg.style.opacity = '1';
+            setTimeout(() => { msg.style.opacity = '0'; }, 3000);
+        })
+        .catch(err => {
+            console.error('Error saving notes:', err);
+            btn.textContent = 'Save Notes';
+            btn.disabled = false;
+        });
+    });
+</script>
+{% endblock %}

@@ -32,6 +32,12 @@ def navigation(request):
             'description': 'Maintenance Tickets',
         },
         {
+            'name': 'Tasks',
+            'url': '/tasks/',
+            'icon': 'tasks',
+            'description': 'Agent Tasks Review',
+        },
+        {
             'name': 'Map',
             'url': '/map/',
             'icon': 'map',

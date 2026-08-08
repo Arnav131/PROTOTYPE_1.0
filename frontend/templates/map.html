@@ -3,405 +3,54 @@
 {% load static %}
 
 {% block extra_head %}
-<style>
-    /* Full-screen Dark Engineering Control-Center Layout */
-    .map-page {
-        display: grid;
-        grid-template-rows: 1fr 34px;
-        height: calc(100vh - 120px);
-        background: #090d16;
-        color: #e2e8f0;
-        font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
-        overflow: hidden;
-        border: 1px solid #1e293b;
-        border-radius: 8px;
-    }
-
-    /* Main Workspace: Left Panel + Map + Right Inspector */
-    .map-workspace {
-        display: grid;
-        grid-template-columns: 240px 1fr 270px;
-        height: 100%;
-        overflow: hidden;
-    }
-
-    /* Common Panel Headers */
-    .panel-header {
-        height: 36px;
-        background: #0f172a;
-        border-bottom: 1px solid #1e293b;
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        padding: 0 14px;
-        font-family: 'JetBrains Mono', monospace;
-        font-size: 0.75rem;
-        font-weight: 700;
-        letter-spacing: 1.2px;
-        color: #94a3b8;
-        text-transform: uppercase;
-    }
-
-    /* Left Panel: Zone Navigator & Filters */
-    .left-panel {
-        background: #0d1322;
-        border-right: 1px solid #1e293b;
-        display: flex;
-        flex-direction: column;
-        overflow-y: auto;
-    }
-
-    .panel-section {
-        padding: 12px 14px;
-        border-bottom: 1px solid #1a2336;
-    }
-
-    .section-title {
-        font-family: 'JetBrains Mono', monospace;
-        font-size: 0.7rem;
-        font-weight: 600;
-        color: #64748b;
-        text-transform: uppercase;
-        letter-spacing: 1px;
-        margin-bottom: 10px;
-    }
-
-    .zone-list {
-        display: flex;
-        flex-direction: column;
-        gap: 6px;
-    }
-
-    .zone-item {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        padding: 8px 10px;
-        background: #131b2e;
-        border: 1px solid #1e293b;
-        border-radius: 4px;
-        cursor: pointer;
-        transition: all 0.15s ease;
-        font-size: 0.8rem;
-    }
-
-    .zone-item:hover {
-        background: #1e293b;
-        border-color: #334155;
-    }
-
-    .zone-item.active {
-        background: #1e2942;
-        border-color: #3b82f6;
-        box-shadow: 0 0 8px rgba(59, 130, 246, 0.2);
-    }
-
-    .zone-name {
-        font-weight: 600;
-        color: #cbd5e1;
-        font-size: 0.78rem;
-    }
-
-    .status-badge-icon {
-        width: 8px;
-        height: 8px;
-        border-radius: 50%;
-    }
-    .status-badge-icon.operational { background: #10b981; box-shadow: 0 0 6px rgba(16, 185, 129, 0.5); }
-    .status-badge-icon.warning { background: #f59e0b; box-shadow: 0 0 6px rgba(245, 158, 11, 0.5); }
-    .status-badge-icon.critical { background: #ef4444; box-shadow: 0 0 8px rgba(239, 68, 68, 0.7); animation: pulse-red 1.5s infinite; }
-
-    @keyframes pulse-red {
-        0%, 100% { transform: scale(1); opacity: 1; }
-        50% { transform: scale(1.3); opacity: 0.7; }
-    }
-
-    .filter-select {
-        width: 100%;
-        background: #131b2e;
-        border: 1px solid #1e293b;
-        color: #cbd5e1;
-        padding: 6px 10px;
-        border-radius: 4px;
-        font-size: 0.8rem;
-        outline: none;
-        cursor: pointer;
-    }
-
-    .filter-select:focus {
-        border-color: #3b82f6;
-    }
-
-    /* Central Map Viewport */
-    .map-center {
-        position: relative;
-        background: #090d16;
-        width: 100%;
-        height: 100%;
-    }
-
-    #railway-map {
-        width: 100%;
-        height: 100%;
-        background: #090d16 !important;
-    }
-
-    /* View Switcher Overlay (MAP | SCHEMATIC) */
-    .view-switcher-bar {
-        position: absolute;
-        top: 14px;
-        left: 50%;
-        transform: translateX(-50%);
-        z-index: 1000;
-        background: rgba(15, 23, 42, 0.9);
-        backdrop-filter: blur(8px);
-        border: 1px solid #1e293b;
-        border-radius: 6px;
-        display: flex;
-        padding: 3px;
-        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
-    }
-
-    .view-btn {
-        background: transparent;
-        border: none;
-        color: #94a3b8;
-        padding: 5px 14px;
-        font-size: 0.75rem;
-        font-family: 'JetBrains Mono', monospace;
-        font-weight: 600;
-        letter-spacing: 1px;
-        border-radius: 4px;
-        cursor: pointer;
-        transition: all 0.15s ease;
-    }
-
-    .view-btn.active {
-        background: #1e293b;
-        color: #38bdf8;
-        box-shadow: 0 0 6px rgba(56, 189, 248, 0.2);
-    }
-
-    /* Custom Map Controls Overlay */
-    .map-control-overlay {
-        position: absolute;
-        bottom: 20px;
-        right: 20px;
-        z-index: 1000;
-        display: flex;
-        flex-direction: column;
-        gap: 6px;
-    }
-
-    .map-btn {
-        background: rgba(15, 23, 42, 0.9);
-        border: 1px solid #1e293b;
-        color: #cbd5e1;
-        width: 32px;
-        height: 32px;
-        border-radius: 4px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-weight: bold;
-        cursor: pointer;
-        transition: all 0.15s ease;
-    }
-
-    .map-btn:hover {
-        background: #1e293b;
-        color: #38bdf8;
-    }
-
-    .map-btn-fit {
-        width: auto;
-        padding: 0 10px;
-        font-family: 'JetBrains Mono', monospace;
-        font-size: 0.7rem;
-    }
-
-    /* Right Inspector Panel */
-    .right-panel {
-        background: #0d1322;
-        border-left: 1px solid #1e293b;
-        display: flex;
-        flex-direction: column;
-        overflow-y: auto;
-    }
-
-    .inspector-content {
-        padding: 14px;
-        display: flex;
-        flex-direction: column;
-        gap: 12px;
-    }
-
-    .asset-title {
-        font-family: 'JetBrains Mono', monospace;
-        font-size: 0.9rem;
-        font-weight: 700;
-        color: #f8fafc;
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-    }
-
-    .risk-tag {
-        font-family: 'JetBrains Mono', monospace;
-        font-size: 0.68rem;
-        padding: 2px 6px;
-        border-radius: 3px;
-        font-weight: 700;
-        background: rgba(239, 68, 68, 0.2);
-        color: #ef4444;
-        border: 1px solid rgba(239, 68, 68, 0.4);
-    }
-
-    .prop-group {
-        background: #131b2e;
-        border: 1px solid #1e293b;
-        border-radius: 6px;
-        padding: 10px;
-        display: flex;
-        flex-direction: column;
-        gap: 6px;
-    }
-
-    .prop-row {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        font-size: 0.75rem;
-    }
-
-    .prop-key {
-        color: #64748b;
-    }
-
-    .prop-val {
-        font-family: 'JetBrains Mono', monospace;
-        color: #e2e8f0;
-        font-weight: 500;
-    }
-
-    /* Waveform Canvas Container */
-    .waveform-box {
-        background: #0a0f1d;
-        border: 1px solid #1e293b;
-        border-radius: 6px;
-        padding: 8px;
-        display: flex;
-        flex-direction: column;
-        gap: 6px;
-    }
-
-    .waveform-header {
-        font-family: 'JetBrains Mono', monospace;
-        font-size: 0.68rem;
-        color: #64748b;
-        display: flex;
-        justify-content: space-between;
-    }
-
-    #waveform-canvas {
-        width: 100%;
-        height: 55px;
-        background: #050811;
-        border-radius: 4px;
-        border: 1px solid #151d2f;
-    }
-
-    .action-card {
-        background: rgba(239, 68, 68, 0.1);
-        border: 1px solid rgba(239, 68, 68, 0.3);
-        border-radius: 6px;
-        padding: 10px;
-        text-align: center;
-    }
-
-    .action-card-title {
-        font-family: 'JetBrains Mono', monospace;
-        font-size: 0.7rem;
-        font-weight: 700;
-        color: #ef4444;
-        letter-spacing: 1px;
-        margin-bottom: 4px;
-    }
-
-    .action-btn {
-        background: #ef4444;
-        color: #ffffff;
-        border: none;
-        width: 100%;
-        padding: 6px 0;
-        font-size: 0.75rem;
-        font-weight: 700;
-        border-radius: 4px;
-        cursor: pointer;
-        transition: background 0.15s ease;
-    }
-
-    .action-btn:hover {
-        background: #dc2626;
-    }
-
-    /* Bottom Compact Status Bar */
-    .map-status-bar {
-        background: #090d16;
-        border-top: 1px solid #1e293b;
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        padding: 0 16px;
-        font-family: 'JetBrains Mono', monospace;
-        font-size: 0.72rem;
-        color: #94a3b8;
-    }
-
-    .status-left, .status-right {
-        display: flex;
-        align-items: center;
-        gap: 16px;
-    }
-
-    .status-divider {
-        color: #334155;
-    }
-
-    .status-highlight-green { color: #10b981; font-weight: 600; }
-    .status-highlight-amber { color: #f59e0b; font-weight: 600; }
-    .status-highlight-red { color: #ef4444; font-weight: 600; }
-
-    /* Override Leaflet Dark Map Tile Canvas Container */
-    .leaflet-container {
-        background: #090d16 !important;
-    }
-    .dark-popup .leaflet-popup-content-wrapper {
-        background: #0f172a !important;
-        color: #f8fafc !important;
-        border: 1px solid #1e293b !important;
-        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.6) !important;
-        border-radius: 6px !important;
-    }
-    .dark-popup .leaflet-popup-tip {
-        background: #0f172a !important;
-    }
-</style>
+<!-- Styles moved to dashboard.css -->
 {% endblock %}
 
 {% block content %}
 <div class="map-page">
 
+    <!-- Map Page Header -->
+    <header class="map-page-header">
+        <div>
+            <h2 class="map-page-title">Railway Network</h2>
+            <div class="map-page-subtitle">India-wide railway infrastructure monitoring</div>
+        </div>
+        <div class="map-live-indicator">
+            LIVE <span class="map-live-dot"></span>
+        </div>
+    </header>
+
+    <!-- Status Strip -->
+    <div class="map-status-strip">
+        <span><strong id="stat-tracks-count" style="color:var(--text-primary)">100</strong> km monitored</span>
+        <span><strong id="stat-sensors-active" class="status-highlight-green">98/100</strong> sensors active</span>
+        <span><strong id="stat-alerts-count" class="status-highlight-red">2 alerts</strong> (<span class="status-highlight-red">1 critical</span>, <span class="status-highlight-amber">1 warning</span>)</span>
+    </div>
+
+    <!-- Toolbar & Legend Row -->
+    <div class="map-tools-row">
+        <div class="map-toolbar">
+            <button class="map-tool-btn active" id="btn-view-map">MAP</button>
+            <button class="map-tool-btn" id="btn-view-schematic">SCHEMATIC</button>
+            <button class="map-tool-btn" id="btn-layers">Layers</button>
+            <button class="map-tool-btn" id="btn-reset-india">Fit India</button>
+            <button class="map-tool-btn" id="btn-fullscreen">Fullscreen</button>
+        </div>
+        <div class="map-legend">
+            <div class="legend-item"><div class="legend-dot" style="background:var(--success)"></div> Healthy</div>
+            <div class="legend-item"><div class="legend-dot" style="background:var(--warning)"></div> Warning</div>
+            <div class="legend-item"><div class="legend-dot" style="background:var(--critical)"></div> Critical</div>
+            <div class="legend-item"><div class="legend-line" style="background:#64748b"></div> Rail Route</div>
+            <div class="legend-item"><div class="legend-line" style="background:#06b6d4"></div> Active Route</div>
+            <div class="legend-item"><div class="legend-dot" style="background:#f8fafc"></div> Sensor</div>
+        </div>
+    </div>
+
     <!-- 3-Column Workspace -->
     <div class="map-workspace">
 
         <!-- LEFT PANEL: Zone Navigator & Asset Filters -->
-        <aside class="left-panel">
-            <div class="panel-header">
-                <span>MAP</span>
-                <span>ZONE NAV</span>
-            </div>
-
+        <aside class="map-left-panel">
             <div class="panel-section">
                 <div class="section-title">ZONE NAVIGATOR</div>
                 <div class="zone-list" id="zone-list">
@@ -420,7 +69,7 @@
                 </select>
             </div>
 
-            <div class="panel-section">
+            <div class="panel-section" style="border-bottom:none">
                 <div class="section-title">ALERT PRIORITY</div>
                 <select class="filter-select" id="alert-priority-filter">
                     <option value="all">All</option>
@@ -433,30 +82,17 @@
 
         <!-- CENTRAL RAILWAY MAP VIEWPORT -->
         <main class="map-center">
-            <!-- View Switcher (MAP | SCHEMATIC) -->
-            <div class="view-switcher-bar">
-                <button class="view-btn active" id="btn-view-map">MAP</button>
-                <button class="view-btn" id="btn-view-schematic">SCHEMATIC</button>
-            </div>
-
             <!-- Railway Map Container -->
             <div id="railway-map"></div>
 
-            <!-- Custom Controls -->
-            <div class="map-control-overlay">
-                <button class="map-btn" id="btn-zoom-in" title="Zoom In">+</button>
-                <button class="map-btn" id="btn-zoom-out" title="Zoom Out">−</button>
-                <button class="map-btn map-btn-fit" id="btn-reset-india" title="Reset View to India">FIT INDIA</button>
+            <div class="map-control-overlay" style="position:absolute; bottom:20px; right:20px; z-index:1000; display:flex; flex-direction:column; gap:6px;">
+                <button class="map-tool-btn" id="btn-zoom-in" title="Zoom In" style="width:32px; height:32px; display:flex; align-items:center; justify-content:center; background:rgba(15,23,42,0.9); border:1px solid #1e293b; color:#cbd5e1; font-weight:bold; font-size:16px;">+</button>
+                <button class="map-tool-btn" id="btn-zoom-out" title="Zoom Out" style="width:32px; height:32px; display:flex; align-items:center; justify-content:center; background:rgba(15,23,42,0.9); border:1px solid #1e293b; color:#cbd5e1; font-weight:bold; font-size:16px;">−</button>
             </div>
         </main>
 
         <!-- RIGHT INSPECTOR PANEL -->
-        <aside class="right-panel">
-            <div class="panel-header">
-                <span>INSPECTOR</span>
-                <span id="inspector-badge">LIVE</span>
-            </div>
-
+        <aside class="map-right-panel">
             <div class="inspector-content" id="inspector-content">
                 <!-- Populated dynamically when track/station/sensor selected -->
             </div>
@@ -465,16 +101,12 @@
     </div>
 
     <!-- BOTTOM COMPACT STATUS BAR -->
-    <footer class="map-status-bar" id="map-status-bar">
-        <div class="status-left">
-            <span><strong id="stat-tracks-count">100</strong> TRACKS</span>
-            <span class="status-divider">|</span>
-            <span><strong id="stat-sensors-active" class="status-highlight-green">98/100</strong> SENSORS ACTIVE</span>
-            <span class="status-divider">|</span>
-            <span><strong id="stat-alerts-count" class="status-highlight-red">2 ALERTS</strong> (<span class="status-highlight-red">1 CRITICAL</span>, <span class="status-highlight-amber">1 WARNING</span>)</span>
+    <footer class="map-bottom-bar" id="map-status-bar">
+        <div>
+            LAST UPDATE <strong id="stat-timestamp">--:--:-- IST</strong>
         </div>
-        <div class="status-right">
-            <span>LAST UPDATE <span id="stat-timestamp">--:--:-- IST</span></span>
+        <div>
+            NETWORK STATUS <span class="status-highlight-green">OPERATIONAL</span>
         </div>
     </footer>
 
@@ -482,7 +114,7 @@
 {% endblock %}
 
 {% block extra_scripts %}
-<script src="{% static 'js/map.js' %}?v=5"></script>
+<script src="{% static 'js/map.js' %}?v=7"></script>
 <script>
     document.addEventListener('DOMContentLoaded', function() {
         if (typeof initRakshakControlMap === 'function') {

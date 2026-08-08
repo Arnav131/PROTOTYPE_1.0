@@ -1,0 +1,110 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Agent Tasks | Rakshak Phase 1{% endblock %}
+
+{% block page_title %}Agent Task Review{% endblock %}
+
+{% block content %}
+
+<div class="tasks-container">
+    <form method="GET" class="filter-bar">
+        <div class="filter-group">
+            <label>Section</label>
+            <select name="section">
+                <option value="">All Sections</option>
+                {% for sec in sections %}
+                <option value="{{ sec }}" {% if request.GET.section == sec %}selected{% endif %}>{{ sec }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        
+        <div class="filter-group">
+            <label>Status</label>
+            <select name="status">
+                <option value="">All Statuses</option>
+                {% for st in statuses %}
+                <option value="{{ st }}" {% if request.GET.status == st %}selected{% endif %}>{{ st }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        
+        <div class="filter-group">
+            <label>Owner</label>
+            <select name="owner">
+                <option value="">All Owners</option>
+                {% for ow in owners %}
+                <option value="{{ ow }}" {% if request.GET.owner == ow %}selected{% endif %}>{{ ow }}</option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <div class="filter-group">
+            <label>Data Status</label>
+            <select name="missing_data">
+                <option value="">All</option>
+                <option value="true" {% if request.GET.missing_data == 'true' %}selected{% endif %}>Missing Data</option>
+                <option value="false" {% if request.GET.missing_data == 'false' %}selected{% endif %}>Complete Data</option>
+            </select>
+        </div>
+
+        <div style="margin-left: auto; display: flex; gap: 12px;">
+            <a href="{% url 'task_list' %}" class="btn btn-secondary" style="text-decoration:none; display:flex; align-items:center;">Clear</a>
+            <button type="submit" class="btn btn-primary">Filter</button>
+        </div>
+    </form>
+
+    <div class="tasks-grid">
+        {% for task in tasks %}
+        <div class="task-card">
+            <div class="task-header">
+                <span class="task-id">{{ task.task_id }}</span>
+                <span class="task-status 
+                    {% if 'Pending' in task.status %}status-pending
+                    {% elif 'Ready' in task.status %}status-ready
+                    {% elif 'Completed' in task.status or 'Approved' in task.status %}status-completed
+                    {% elif 'Rework' in task.status %}status-rework
+                    {% else %}status-pending{% endif %}">
+                    {{ task.status }}
+                </span>
+            </div>
+            
+            <h3 class="task-title">{{ task.title }}</h3>
+            
+            <div class="task-meta">
+                <div class="meta-row">
+                    <span class="meta-icon">📍</span>
+                    <span>{{ task.section }}</span>
+                </div>
+                <div class="meta-row">
+                    <span class="meta-icon">👤</span>
+                    <span>{{ task.owner }}</span>
+                </div>
+                <div class="meta-row">
+                    <span class="meta-icon">📅</span>
+                    <span>{{ task.created_at|date:"M d, Y H:i" }}</span>
+                </div>
+            </div>
+
+            <div class="task-footer">
+                {% if task.missing_data %}
+                <div class="missing-data-badge">
+                    <span>⚠</span> Missing Data
+                </div>
+                {% else %}
+                <div></div>
+                {% endif %}
+                
+                <a href="{% url 'task_detail' task.task_id %}" class="view-btn">
+                    Review Task →
+                </a>
+            </div>
+        </div>
+        {% empty %}
+        <div style="grid-column: 1 / -1; text-align: center; padding: 40px; color: var(--text-secondary);">
+            No tasks found matching the current filters.
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% endblock %}

@@ -84,7 +84,12 @@ function animateCounters() {
 
 // Shared Chart.js defaults — theme-aware
 function getChartDefaults() {
-    const dark = isDarkMode();
+    const style = getComputedStyle(document.documentElement);
+    const bgPanel = style.getPropertyValue('--bg-panel').trim() || '#111923';
+    const textPrimary = style.getPropertyValue('--text-primary').trim() || '#F2F5F7';
+    const textSecondary = style.getPropertyValue('--text-secondary').trim() || '#91A0AE';
+    const border = style.getPropertyValue('--border').trim() || '#273442';
+
     return {
         responsive: true,
         maintainAspectRatio: false,
@@ -95,10 +100,10 @@ function getChartDefaults() {
         plugins: {
             legend: { display: false },
             tooltip: {
-                backgroundColor: dark ? '#111111' : '#f0f0f0',
-                titleColor: dark ? '#ffffff' : '#000000',
-                bodyColor: dark ? '#a0a0a0' : '#555555',
-                borderColor: dark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.08)',
+                backgroundColor: bgPanel,
+                titleColor: textPrimary,
+                bodyColor: textSecondary,
+                borderColor: border,
                 borderWidth: 1,
                 padding: 12,
                 cornerRadius: 8,
@@ -109,21 +114,21 @@ function getChartDefaults() {
         scales: {
             x: {
                 grid: {
-                    color: dark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.06)',
+                    color: border,
                     drawBorder: false,
                 },
                 ticks: {
-                    color: dark ? '#666666' : '#888888',
+                    color: textSecondary,
                     font: { family: 'JetBrains Mono', size: 10 },
                 },
             },
             y: {
                 grid: {
-                    color: dark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.06)',
+                    color: border,
                     drawBorder: false,
                 },
                 ticks: {
-                    color: dark ? '#666666' : '#888888',
+                    color: textSecondary,
                     font: { family: 'JetBrains Mono', size: 10 },
                 },
             },
@@ -149,7 +154,17 @@ function createGradient(ctx, colorTop, colorBottom) {
 window.rakshakChartInstances = window.rakshakChartInstances || {};
 
 function getChartColorConfig(type, values) {
-    if (!values || values.length === 0) return { main: '#10b981', bg: 'rgba(16,185,129,0.2)' };
+    const style = getComputedStyle(document.documentElement);
+    const success = style.getPropertyValue('--success').trim() || '#20C779';
+    const warning = style.getPropertyValue('--warning').trim() || '#F5A623';
+    const critical = style.getPropertyValue('--critical').trim() || '#F04B55';
+    
+    // We can use the -dim variables for backgrounds
+    const successDim = style.getPropertyValue('--success-dim').trim() || 'rgba(32, 199, 121, 0.12)';
+    const warningDim = style.getPropertyValue('--warning-dim').trim() || 'rgba(245, 166, 35, 0.12)';
+    const criticalDim = style.getPropertyValue('--critical-dim').trim() || 'rgba(240, 75, 85, 0.12)';
+
+    if (!values || values.length === 0) return { main: success, bg: successDim };
     const lastValue = values[values.length - 1];
     let status = 'healthy'; // default
     
@@ -165,9 +180,9 @@ function getChartColorConfig(type, values) {
         else if (absVal >= 2) status = 'warning';
     }
 
-    if (status === 'critical') return { main: '#ef4444', bg: 'rgba(239,68,68,0.2)' }; // Red
-    if (status === 'warning') return { main: '#f59e0b', bg: 'rgba(245,158,11,0.2)' }; // Amber
-    return { main: '#10b981', bg: 'rgba(16,185,129,0.2)' }; // Green
+    if (status === 'critical') return { main: critical, bg: criticalDim };
+    if (status === 'warning') return { main: warning, bg: warningDim };
+    return { main: success, bg: successDim };
 }
 
 /**
@@ -188,7 +203,8 @@ function initDashboardCharts(data) {
     if (window.rakshakChartInstances.gauge) window.rakshakChartInstances.gauge.destroy();
 
     const timestamps = data.timestamps;
-    const pointBorder = isDarkMode() ? '#111111' : '#f0f0f0';
+    const style = getComputedStyle(document.documentElement);
+    const pointBorder = style.getPropertyValue('--bg-panel').trim() || '#111923';
 
     // --- Vibration Chart ---
     const vibCtx = document.getElementById('chart-vibration').getContext('2d');
@@ -336,6 +352,11 @@ function initThemeToggle() {
         // Re-render charts if they exist (to update colors)
         if (window.rakshakLastChartData) {
             initDashboardCharts(window.rakshakLastChartData);
+        }
+        
+        // Update map if it exists
+        if (typeof updateRakshakMapTheme === 'function') {
+            updateRakshakMapTheme();
         }
     });
 

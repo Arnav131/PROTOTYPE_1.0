@@ -1,118 +1,206 @@
-<!-- frontend/templates/alerts.html -->
-<!--
-  Alerts page — displays all infrastructure alerts with severity filtering.
-  Each alert shows severity badge, description, location, and timestamp.
--->
 {% extends "base.html" %}
 {% load static %}
 
 {% block content %}
-<div class="alerts-page">
 
-    <!-- ================================================================ -->
-    <!-- ALERT SUMMARY BAR                                                -->
-    <!-- ================================================================ -->
-    <section class="alert-summary" id="alert-summary">
-        <div class="summary-cards">
-            <div class="summary-card summary-card--total">
-                <div class="summary-value">{{ summary.total }}</div>
-                <div class="summary-label">Total Alerts</div>
-            </div>
-            <div class="summary-card summary-card--critical">
-                <div class="summary-value">{{ summary.critical }}</div>
-                <div class="summary-label">Critical</div>
-            </div>
-            <div class="summary-card summary-card--warning">
-                <div class="summary-value">{{ summary.warning }}</div>
-                <div class="summary-label">Warning</div>
-            </div>
-            <div class="summary-card summary-card--info">
-                <div class="summary-value">{{ summary.info }}</div>
-                <div class="summary-label">Info</div>
-            </div>
-            <div class="summary-card summary-card--active">
-                <div class="summary-value">{{ summary.active }}</div>
-                <div class="summary-label">Active</div>
-            </div>
-        </div>
-    </section>
+<div class="rak-alerts-page">
 
-    <!-- ================================================================ -->
-    <!-- FILTER CONTROLS                                                  -->
-    <!-- ================================================================ -->
-    <section class="filter-bar" id="alert-filters">
-        <div class="filter-group">
-            <span class="filter-label">Filter by Severity:</span>
-            <a href="?severity=all"
-               class="filter-btn {% if current_filter == 'all' %}filter-btn--active{% endif %}"
-               id="filter-all">All</a>
-            <a href="?severity=critical"
-               class="filter-btn filter-btn--critical {% if current_filter == 'critical' %}filter-btn--active{% endif %}"
-               id="filter-critical">🔴 Critical</a>
-            <a href="?severity=warning"
-               class="filter-btn filter-btn--warning {% if current_filter == 'warning' %}filter-btn--active{% endif %}"
-               id="filter-warning">🟡 Warning</a>
-            <a href="?severity=info"
-               class="filter-btn filter-btn--info {% if current_filter == 'info' %}filter-btn--active{% endif %}"
-               id="filter-info">🔵 Info</a>
-        </div>
-    </section>
+    <!-- Breadcrumb -->
+    <div class="rak-alerts-breadcrumb">
+        <a href="/" class="rak-breadcrumb-link">Home</a>
+        <span class="rak-breadcrumb-sep">&gt;</span>
+        <span class="rak-breadcrumb-current">Alerts</span>
+    </div>
 
-    <!-- ================================================================ -->
-    <!-- ALERT LIST                                                       -->
-    <!-- ================================================================ -->
-    <section class="alert-list" id="alert-list">
-        {% for alert in alerts %}
-        <div class="alert-card alert-card--{{ alert.severity }}" id="alert-{{ alert.id }}" onclick="window.location.href='/map/?focus_alert={{ alert.id }}'" style="cursor: pointer;">
-            <div class="alert-severity-strip"></div>
-            <div class="alert-body">
-                <div class="alert-header">
-                    <div class="alert-title-row">
-                        <span class="severity-badge severity-badge--{{ alert.severity }}">
-                            {% if alert.severity == 'critical' %}🔴 CRITICAL
-                            {% elif alert.severity == 'warning' %}🟡 WARNING
-                            {% else %}🔵 INFO{% endif %}
-                        </span>
-                        <h3 class="alert-title">{{ alert.title }}</h3>
-                    </div>
-                    <div class="alert-meta">
-                        <span class="alert-id">{{ alert.id }}</span>
-                        <span class="alert-status alert-status--{{ alert.status }}">
-                            {{ alert.status|upper }}
-                        </span>
-                    </div>
-                </div>
-                <p class="alert-description">{{ alert.description }}</p>
-                <div class="alert-details">
-                    <div class="alert-detail">
-                        <span class="detail-icon">🛤️</span>
-                        <span class="detail-label">Track:</span>
-                        <span class="detail-value">{{ alert.track_id }}</span>
-                    </div>
-                    <div class="alert-detail">
-                        <span class="detail-icon">📍</span>
-                        <span class="detail-label">Station:</span>
-                        <span class="detail-value">{{ alert.station }}</span>
-                    </div>
-                    <div class="alert-detail">
-                        <span class="detail-icon">🏢</span>
-                        <span class="detail-label">Zone:</span>
-                        <span class="detail-value">{{ alert.zone }}</span>
-                    </div>
-                    <div class="alert-detail">
-                        <span class="detail-icon">🕐</span>
-                        <span class="detail-label">Time:</span>
-                        <span class="detail-value">{{ alert.timestamp }}</span>
-                    </div>
-                </div>
+    <!-- Header Intro -->
+    <div class="rak-alerts-header">
+        <div class="rak-alerts-title-block">
+            <h1 class="rak-alerts-title">ACTIVE ALERTS</h1>
+            <p class="rak-alerts-subtitle">Monitor railway sensor warnings and incidents in real-time</p>
+        </div>
+        <div class="rak-alerts-header-active">
+            <span class="rak-active-status-dot">●</span>
+            <span>{{ summary.active|default:0 }} ACTIVE ALERTS</span>
+        </div>
+    </div>
+
+    <!-- Summary KPI Cards -->
+    <div class="rak-alerts-summary">
+        <!-- Total -->
+        <div class="rak-alerts-stat-card rak-stat-total">
+            <div class="rak-alerts-stat-top">
+                <svg class="rak-alerts-stat-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <line x1="8" y1="6" x2="21" y2="6"></line>
+                    <line x1="8" y1="12" x2="21" y2="12"></line>
+                    <line x1="8" y1="18" x2="21" y2="18"></line>
+                    <line x1="3" y1="6" x2="3.01" y2="6"></line>
+                    <line x1="3" y1="12" x2="3.01" y2="12"></line>
+                    <line x1="3" y1="18" x2="3.01" y2="18"></line>
+                </svg>
+                <span class="rak-alerts-stat-label">TOTAL ALERTS</span>
+            </div>
+            <div class="rak-alerts-stat-value">{{ summary.total|default:0 }}</div>
+            <div class="rak-alerts-stat-desc">All sensor alerts</div>
+        </div>
+
+        <!-- Critical -->
+        <div class="rak-alerts-stat-card rak-stat-critical">
+            <div class="rak-alerts-stat-top">
+                <svg class="rak-alerts-stat-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path>
+                    <line x1="12" y1="9" x2="12" y2="13"></line>
+                    <line x1="12" y1="17" x2="12.01" y2="17"></line>
+                </svg>
+                <span class="rak-alerts-stat-label">CRITICAL</span>
+            </div>
+            <div class="rak-alerts-stat-value">{{ summary.critical|default:0 }}</div>
+            <div class="rak-alerts-stat-desc">High priority alerts</div>
+        </div>
+
+        <!-- Warning -->
+        <div class="rak-alerts-stat-card rak-stat-warning">
+            <div class="rak-alerts-stat-top">
+                <svg class="rak-alerts-stat-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path>
+                    <line x1="12" y1="9" x2="12" y2="13"></line>
+                    <line x1="12" y1="17" x2="12.01" y2="17"></line>
+                </svg>
+                <span class="rak-alerts-stat-label">WARNING</span>
+            </div>
+            <div class="rak-alerts-stat-value">{{ summary.warning|default:0 }}</div>
+            <div class="rak-alerts-stat-desc">Medium priority alerts</div>
+        </div>
+
+        <!-- Info -->
+        <div class="rak-alerts-stat-card rak-stat-info">
+            <div class="rak-alerts-stat-top">
+                <svg class="rak-alerts-stat-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <circle cx="12" cy="12" r="10"></circle>
+                    <line x1="12" y1="16" x2="12" y2="12"></line>
+                    <line x1="12" y1="8" x2="12.01" y2="8"></line>
+                </svg>
+                <span class="rak-alerts-stat-label">INFO</span>
+            </div>
+            <div class="rak-alerts-stat-value">{{ summary.info|default:0 }}</div>
+            <div class="rak-alerts-stat-desc">Informational alerts</div>
+        </div>
+
+        <!-- Active -->
+        <div class="rak-alerts-stat-card rak-stat-active">
+            <div class="rak-alerts-stat-top">
+                <svg class="rak-alerts-stat-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <polygon points="5 3 19 12 5 21 5 3"></polygon>
+                </svg>
+                <span class="rak-alerts-stat-label">ACTIVE</span>
+            </div>
+            <div class="rak-alerts-stat-value">{{ summary.active|default:0 }}</div>
+            <div class="rak-alerts-stat-desc">Currently active alerts</div>
+        </div>
+    </div>
+
+    <!-- Filter Bar Panel -->
+    <div class="rak-alerts-filter-panel">
+        <div class="rak-alerts-filter-left">
+            <span class="rak-alerts-filter-label">FILTER BY SEVERITY</span>
+            <div class="rak-alerts-filters">
+                <a href="?severity=all" class="rak-alerts-filter-btn {% if current_filter == 'all' %}active{% endif %}">
+                    All
+                </a>
+                <a href="?severity=critical" class="rak-alerts-filter-btn {% if current_filter == 'critical' %}active{% endif %}">
+                    <span class="rak-filter-dot rak-dot-critical"></span>
+                    Critical
+                </a>
+                <a href="?severity=warning" class="rak-alerts-filter-btn {% if current_filter == 'warning' %}active{% endif %}">
+                    <span class="rak-filter-dot rak-dot-warning"></span>
+                    Warning
+                </a>
+                <a href="?severity=info" class="rak-alerts-filter-btn {% if current_filter == 'info' %}active{% endif %}">
+                    <span class="rak-filter-dot rak-dot-info"></span>
+                    Info
+                </a>
             </div>
         </div>
-        {% empty %}
-        <div class="empty-state">
-            <div class="empty-icon">✅</div>
-            <p>No alerts matching the current filter.</p>
+        <a href="?severity=all" class="rak-alerts-clear-btn">Clear Filters</a>
+    </div>
+
+    <!-- Table Panel -->
+    <div class="rak-alerts-table-panel">
+        <div class="rak-alerts-table-header-bar">
+            <div class="rak-alerts-table-title">ALERTS</div>
+            <div class="rak-alerts-table-updated">
+                ↻ Last updated: <span id="alerts-clock-time">--:--:--</span> IST
+            </div>
         </div>
-        {% endfor %}
-    </section>
+        
+        <div class="rak-alerts-table-wrapper">
+            <table class="rak-alerts-table">
+                <thead>
+                    <tr>
+                        <th>SEVERITY</th>
+                        <th>ALERT</th>
+                        <th>SENSOR</th>
+                        <th>ZONE</th>
+                        <th>TIME</th>
+                        <th>STATUS</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% if alerts %}
+                        {% for alert in alerts %}
+                        <tr onclick="window.location.href='/map/?focus_alert={{ alert.id }}'">
+                            <td>
+                                <span class="rak-severity-badge rak-badge-{{ alert.severity }}">
+                                    <span class="rak-badge-dot"></span>
+                                    {{ alert.severity|upper }}
+                                </span>
+                            </td>
+                            <td class="rak-alert-title-cell">{{ alert.title }}</td>
+                            <td class="rak-mono-cell">{{ alert.track_id }}</td>
+                            <td>{{ alert.zone }}</td>
+                            <td class="rak-mono-cell">{{ alert.timestamp|slice:"11:"|default:alert.timestamp }}</td>
+                            <td>
+                                <span class="rak-status-badge rak-status-{{ alert.status }}">
+                                    {{ alert.status|upper }}
+                                </span>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    {% else %}
+                        <tr>
+                            <td colspan="6" class="rak-empty-td">
+                                <div class="rak-alerts-empty">
+                                    <svg class="rak-alerts-empty-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                                        <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path>
+                                        <path d="M13.73 21a2 2 0 0 1-3.46 0"></path>
+                                    </svg>
+                                    <div class="rak-alerts-empty-title">No active alerts</div>
+                                    <div class="rak-alerts-empty-desc">No alerts matching the current filter.</div>
+                                </div>
+                            </td>
+                        </tr>
+                    {% endif %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
 </div>
+
+<script>
+    (function() {
+        function updateAlertsClock() {
+            var now = new Date();
+            var hours = String(now.getHours()).padStart(2, '0');
+            var minutes = String(now.getMinutes()).padStart(2, '0');
+            var seconds = String(now.getSeconds()).padStart(2, '0');
+            var timeStr = hours + ':' + minutes + ':' + seconds;
+            var el = document.getElementById('alerts-clock-time');
+            if (el) {
+                el.textContent = timeStr;
+            }
+        }
+        updateAlertsClock();
+        setInterval(updateAlertsClock, 1000);
+    })();
+</script>
 {% endblock %}

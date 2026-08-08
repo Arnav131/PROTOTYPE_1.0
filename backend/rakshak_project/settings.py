@@ -45,6 +45,7 @@ INSTALLED_APPS = [
     'tickets',
     'map_view',
     'railway',
+    'agent_tasks',
 ]
 
 MIDDLEWARE = [
@@ -55,7 +56,6 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
-    'railway.middleware.CurrentUserMiddleware',
 ]
 
 ROOT_URLCONF = 'rakshak_project.urls'
@@ -87,18 +87,38 @@ TEMPLATES = [
 WSGI_APPLICATION = 'rakshak_project.wsgi.application'
 
 # ---------------------------------------------------------------------------
-# Database — PostgreSQL for development
+# Database — PostgreSQL with automatic SQLite fallback
 # ---------------------------------------------------------------------------
-DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.postgresql',
-        'NAME': os.environ.get('DB_NAME', 'rakshak'),
-        'USER': os.environ.get('DB_USER', 'postgres'),
-        'PASSWORD': os.environ.get('DB_PASSWORD', ''),
-        'HOST': os.environ.get('DB_HOST', 'localhost'),
-        'PORT': os.environ.get('DB_PORT', '5432'),
+try:
+    import psycopg2
+    # Check if PostgreSQL port is listening
+    import socket
+    s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    s.settimeout(0.5)
+    pg_port = int(os.environ.get('DB_PORT', '5432'))
+    pg_host = os.environ.get('DB_HOST', 'localhost')
+    res = s.connect_ex((pg_host, pg_port))
+    s.close()
+    if res == 0:
+        DATABASES = {
+            'default': {
+                'ENGINE': 'django.db.backends.postgresql',
+                'NAME': os.environ.get('DB_NAME', 'rakshak'),
+                'USER': os.environ.get('DB_USER', 'postgres'),
+                'PASSWORD': os.environ.get('DB_PASSWORD', ''),
+                'HOST': pg_host,
+                'PORT': str(pg_port),
+            }
+        }
+    else:
+        raise ConnectionRefusedError("PostgreSQL port not open")
+except Exception:
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.sqlite3',
+            'NAME': BASE_DIR / 'db.sqlite3',
+        }
     }
-}
 
 # ---------------------------------------------------------------------------
 # Static files — served from frontend/static/
