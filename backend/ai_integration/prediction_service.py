@@ -299,3 +299,12 @@ class PredictionService:
             Dict with overall status and per-provider health.
         """
         return ai_provider_registry.health_check()
+
+    def get_provider_metadata(self) -> Dict[str, Any]:
+        """
+        Get capabilities and metadata from the active provider.
+        """
+        provider = self._get_provider()
+        if provider:
+            return provider.get_metadata()
+        return {}
