@@ -4,32 +4,762 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>RAKSHAK — Login</title>
-    <link rel="stylesheet" href="{% static 'css/dashboard.css' %}?v=4">
+    <meta name="description" content="Rakshak — Railway Operations Control Center. Secure login for authorised railway personnel.">
+    <title>RAKSHAK — Sign In</title>
+
+    <!-- Google Fonts — Inter for UI, JetBrains Mono for data readouts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+
+    <style>
+        /* ============================================================
+           DESIGN TOKENS
+           ============================================================ */
+        :root {
+            --bg-base:        #0D1117;
+            --bg-surface:     #161B22;
+            --bg-elevated:    #21262D;
+            --bg-sunken:      #090D13;
+            --border-default: #30363D;
+            --border-subtle:  #21262D;
+            --text-primary:   #E6EDF3;
+            --text-secondary: #8B949E;
+            --text-muted:     #484F58;
+            --accent-blue:    #388BFD;
+            --accent-hover:   #1F6FEB;
+            --success:        #3FB950;
+            --danger:         #F85149;
+        }
+
+        /* ============================================================
+           RESET & BASE
+           ============================================================ */
+        *, *::before, *::after {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        html, body {
+            height: 100%;
+            overflow: hidden;
+            font-family: 'Inter', sans-serif;
+            background: var(--bg-base);
+            color: var(--text-primary);
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+        }
+
+        /* ============================================================
+           LAYOUT — TWO COLUMNS
+           ============================================================ */
+        .login-shell {
+            display: flex;
+            height: 100vh;
+            width: 100vw;
+        }
+
+        /* ============================================================
+           LEFT PANEL — HERO IMAGE
+           ============================================================ */
+        .panel-left {
+            position: relative;
+            width: 55%;
+            min-width: 0;
+            background:
+                url('https://images.unsplash.com/photo-1474487548417-781cb71495f3?w=1400&q=80')
+                center center / cover no-repeat;
+        }
+
+        .panel-left::after {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: linear-gradient(
+                to right,
+                rgba(13,17,23,0.2) 0%,
+                rgba(13,17,23,0.5) 60%,
+                rgba(13,17,23,0.93) 100%
+            );
+        }
+
+        /* Stats strip at bottom of left panel */
+        .stats-strip {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            z-index: 1;
+            padding: 0 48px 36px;
+        }
+
+        .stats-label {
+            font-family: 'Inter', sans-serif;
+            font-size: 11px;
+            font-weight: 500;
+            letter-spacing: 1.8px;
+            text-transform: uppercase;
+            color: rgba(230,237,243,0.45);
+            margin-bottom: 16px;
+        }
+
+        .stats-row {
+            display: flex;
+            align-items: center;
+            gap: 0;
+        }
+
+        .stat-item {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .stat-value {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 22px;
+            font-weight: 500;
+            color: var(--text-primary);
+            line-height: 1;
+        }
+
+        .stat-desc {
+            font-family: 'Inter', sans-serif;
+            font-size: 10px;
+            font-weight: 500;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+            color: rgba(139,148,158,0.7);
+        }
+
+        .stat-divider {
+            width: 1px;
+            height: 28px;
+            background: var(--border-default);
+            margin: 0 32px;
+            flex-shrink: 0;
+        }
+
+        /* ============================================================
+           RIGHT PANEL
+           ============================================================ */
+        .panel-right {
+            width: 45%;
+            min-width: 0;
+            display: flex;
+            flex-direction: column;
+            background: var(--bg-base);
+            border-left: 1px solid var(--border-default);
+        }
+
+        /* ============================================================
+           TOP BAR
+           ============================================================ */
+        .topbar {
+            height: 48px;
+            flex-shrink: 0;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 40px;
+            border-bottom: 1px solid var(--border-subtle);
+        }
+
+        .topbar-zone {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 11px;
+            color: var(--text-muted);
+        }
+
+        .topbar-status {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .status-dot {
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            background: var(--success);
+            box-shadow: 0 0 6px rgba(63,185,80,0.5);
+            flex-shrink: 0;
+        }
+
+        .status-text {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 11px;
+            color: var(--success);
+        }
+
+        /* ============================================================
+           FORM BODY
+           ============================================================ */
+        .form-body {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            padding: 0 56px 40px;
+            overflow-y: auto;
+        }
+
+        /* Branding */
+        .brand-row {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+        }
+
+        .brand-icon-wrap {
+            width: 42px;
+            height: 42px;
+            flex-shrink: 0;
+        }
+
+        .brand-title {
+            font-family: 'Inter', sans-serif;
+            font-size: 26px;
+            font-weight: 700;
+            letter-spacing: 3px;
+            color: var(--text-primary);
+            line-height: 1;
+        }
+
+        .brand-subtitle {
+            font-family: 'Inter', sans-serif;
+            font-size: 10px;
+            font-weight: 500;
+            letter-spacing: 2.5px;
+            text-transform: uppercase;
+            color: var(--text-muted);
+            padding-left: 56px;
+            margin-top: 6px;
+        }
+
+        .brand-rule {
+            border: none;
+            height: 1px;
+            background: var(--border-subtle);
+            margin: 28px 0;
+        }
+
+        /* Form heading */
+        .form-heading {
+            font-family: 'Inter', sans-serif;
+            font-size: 15px;
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+
+        .form-subheading {
+            font-family: 'Inter', sans-serif;
+            font-size: 12px;
+            color: var(--text-secondary);
+            margin-top: 4px;
+            margin-bottom: 24px;
+        }
+
+        /* Error banner */
+        .error-banner {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            background: rgba(248,81,73,0.08);
+            border: 1px solid rgba(248,81,73,0.3);
+            border-radius: 6px;
+            padding: 10px 14px;
+            margin-bottom: 18px;
+        }
+
+        .error-banner svg {
+            flex-shrink: 0;
+        }
+
+        .error-banner-text {
+            font-family: 'Inter', sans-serif;
+            font-size: 12px;
+            color: var(--danger);
+        }
+
+        /* Form fields */
+        .field-group {
+            margin-bottom: 16px;
+        }
+
+        .field-label {
+            display: block;
+            font-family: 'Inter', sans-serif;
+            font-size: 12px;
+            font-weight: 500;
+            color: var(--text-secondary);
+            margin-bottom: 6px;
+            letter-spacing: 0.2px;
+        }
+
+        .field-wrap {
+            position: relative;
+        }
+
+        .field-input {
+            width: 100%;
+            background: var(--bg-sunken);
+            border: 1px solid var(--border-default);
+            border-radius: 6px;
+            padding: 10px 14px;
+            font-family: 'Inter', sans-serif;
+            font-size: 14px;
+            color: var(--text-primary);
+            outline: none;
+            transition: border-color 150ms ease, box-shadow 150ms ease;
+        }
+
+        .field-input::placeholder {
+            color: var(--text-muted);
+        }
+
+        .field-input:focus {
+            border-color: var(--accent-blue);
+            box-shadow: 0 0 0 3px rgba(56,139,253,0.12);
+        }
+
+        .field-input.has-error {
+            border-color: var(--danger);
+        }
+
+        .field-input--password {
+            padding-right: 44px;
+        }
+
+        .field-error {
+            font-family: 'Inter', sans-serif;
+            font-size: 11px;
+            color: var(--danger);
+            margin-top: 5px;
+        }
+
+        /* Password toggle */
+        .pw-toggle {
+            position: absolute;
+            right: 13px;
+            top: 50%;
+            transform: translateY(-50%);
+            background: none;
+            border: none;
+            cursor: pointer;
+            padding: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--text-muted);
+            transition: color 150ms ease;
+        }
+
+        .pw-toggle:hover {
+            color: var(--text-secondary);
+        }
+
+        .pw-toggle svg {
+            width: 16px;
+            height: 16px;
+        }
+
+        .pw-toggle .icon-eye-off {
+            display: none;
+        }
+
+        .pw-toggle.is-visible .icon-eye {
+            display: none;
+        }
+
+        .pw-toggle.is-visible .icon-eye-off {
+            display: block;
+        }
+
+        /* Submit button */
+        .btn-submit {
+            width: 100%;
+            background: var(--accent-blue);
+            border: none;
+            border-radius: 6px;
+            padding: 11px;
+            font-family: 'Inter', sans-serif;
+            font-size: 14px;
+            font-weight: 600;
+            color: #ffffff;
+            cursor: pointer;
+            margin-top: 22px;
+            position: relative;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 42px;
+        }
+
+        .btn-submit:hover {
+            background: var(--accent-hover);
+        }
+
+        .btn-submit:active {
+            transform: scale(0.998);
+        }
+
+        .btn-submit .btn-text {
+            transition: opacity 100ms ease;
+        }
+
+        .btn-submit.is-loading .btn-text {
+            opacity: 0;
+        }
+
+        .btn-submit .btn-spinner {
+            display: none;
+            position: absolute;
+            width: 16px;
+            height: 16px;
+            border: 2px solid rgba(255,255,255,0.3);
+            border-top-color: #ffffff;
+            border-radius: 50%;
+            animation: spin 0.6s linear infinite;
+        }
+
+        .btn-submit.is-loading .btn-spinner {
+            display: block;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        /* Access note */
+        .access-note {
+            font-family: 'Inter', sans-serif;
+            font-size: 11px;
+            color: var(--text-muted);
+            text-align: center;
+            margin-top: 18px;
+            line-height: 1.6;
+        }
+
+        /* Feature callouts */
+        .callout-section {
+            margin-top: 32px;
+            padding-top: 24px;
+            border-top: 1px solid var(--border-subtle);
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .callout-row {
+            display: flex;
+            gap: 12px;
+            align-items: flex-start;
+        }
+
+        .callout-icon {
+            width: 30px;
+            height: 30px;
+            flex-shrink: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: var(--bg-elevated);
+            border: 1px solid var(--border-default);
+            border-radius: 6px;
+        }
+
+        .callout-icon svg {
+            width: 14px;
+            height: 14px;
+            color: var(--text-secondary);
+        }
+
+        .callout-text {
+            min-width: 0;
+        }
+
+        .callout-title {
+            font-family: 'Inter', sans-serif;
+            font-size: 12px;
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+
+        .callout-desc {
+            font-family: 'Inter', sans-serif;
+            font-size: 11px;
+            color: var(--text-muted);
+            margin-top: 2px;
+        }
+
+        /* ============================================================
+           BOTTOM BAR
+           ============================================================ */
+        .bottombar {
+            height: 44px;
+            flex-shrink: 0;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 40px;
+            border-top: 1px solid var(--border-subtle);
+        }
+
+        .bottombar-text {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 11px;
+            color: var(--text-muted);
+        }
+    </style>
 </head>
 <body>
-    <main class="login-main">
-        <form method="post" class="login-card">
-            {% csrf_token %}
-            <div class="header-brand">
-                <span class="brand-icon">🛡️</span>
-                <div class="brand-text">
-                    <h1 class="brand-name">RAKSHAK</h1>
-                    <span class="brand-subtitle">Railway Operations Control Center</span>
+    <div class="login-shell">
+        <!-- ============================================================
+             LEFT PANEL — Hero Image + Stats
+             ============================================================ -->
+        <div class="panel-left">
+            <div class="stats-strip">
+                <div class="stats-label">Indian Railways — Network Statistics</div>
+                <div class="stats-row">
+                    <div class="stat-item">
+                        <span class="stat-value">68,103</span>
+                        <span class="stat-desc">Route km</span>
+                    </div>
+                    <div class="stat-divider"></div>
+                    <div class="stat-item">
+                        <span class="stat-value">8B+</span>
+                        <span class="stat-desc">Annual Passengers</span>
+                    </div>
+                    <div class="stat-divider"></div>
+                    <div class="stat-item">
+                        <span class="stat-value">13,169</span>
+                        <span class="stat-desc">Trains Daily</span>
+                    </div>
                 </div>
             </div>
-            {% if form.errors %}
-            <div class="login-error">Invalid username or password.</div>
-            {% endif %}
-            <label>Username
-                <input type="text" name="username" autofocus autocapitalize="none" required>
-            </label>
-            <label>Password
-                <input type="password" name="password" required>
-            </label>
-            <input type="hidden" name="next" value="{{ next }}">
-            <button type="submit">Sign In</button>
-        </form>
-    </main>
+        </div>
+
+        <!-- ============================================================
+             RIGHT PANEL — Top bar + Form + Bottom bar
+             ============================================================ -->
+        <div class="panel-right">
+            <!-- Top bar -->
+            <div class="topbar">
+                <span class="topbar-zone">NR · Delhi Division · Zone 01</span>
+                <div class="topbar-status">
+                    <span class="status-dot"></span>
+                    <span class="status-text">All Systems Operational</span>
+                </div>
+            </div>
+
+            <!-- Form body -->
+            <div class="form-body">
+                <!-- Branding -->
+                <div class="brand-row">
+                    <div class="brand-icon-wrap">
+                        <!-- Shield icon with train silhouette -->
+                        <svg width="42" height="42" viewBox="0 0 42 42" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <defs>
+                                <linearGradient id="shieldGrad" x1="0" y1="0" x2="42" y2="42" gradientUnits="userSpaceOnUse">
+                                    <stop offset="0%" stop-color="#4DA3FF"/>
+                                    <stop offset="100%" stop-color="#1A5FBD"/>
+                                </linearGradient>
+                            </defs>
+                            <path d="M21 2L5 9v10c0 11 6.9 17.6 16 20 9.1-2.4 16-9 16-20V9L21 2z" fill="url(#shieldGrad)"/>
+                            <g fill="#ffffff">
+                                <!-- Train body -->
+                                <rect x="13" y="16" width="16" height="11" rx="2"/>
+                                <!-- Windows -->
+                                <rect x="15" y="18" width="4" height="3" rx="0.5" fill="#1A5FBD"/>
+                                <rect x="21" y="18" width="4" height="3" rx="0.5" fill="#1A5FBD"/>
+                                <!-- Wheels -->
+                                <circle cx="16" cy="29" r="1.5"/>
+                                <circle cx="26" cy="29" r="1.5"/>
+                                <!-- Roof -->
+                                <rect x="16" y="14" width="10" height="3" rx="1.5"/>
+                                <!-- Rail -->
+                                <rect x="11" y="30" width="20" height="1" rx="0.5"/>
+                            </g>
+                        </svg>
+                    </div>
+                    <span class="brand-title">RAKSHAK</span>
+                </div>
+                <div class="brand-subtitle">Railway Operations Control Center</div>
+                <hr class="brand-rule">
+
+                <!-- Form heading -->
+                <h1 class="form-heading">Sign in to continue</h1>
+                <p class="form-subheading">Enter your credentials to access the control system</p>
+
+                <!-- Error banner -->
+                {% if form.errors or form.non_field_errors %}
+                <div class="error-banner" role="alert">
+                    <svg width="14" height="14" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M8 1C4.13 1 1 4.13 1 8s3.13 7 7 7 7-3.13 7-7-3.13-7-7-7zm-.5 3h1v5h-1V4zm.5 8a.75.75 0 110-1.5.75.75 0 010 1.5z" fill="var(--danger)"/>
+                    </svg>
+                    <span class="error-banner-text">Invalid credentials. Verify your username and password.</span>
+                </div>
+                {% endif %}
+
+                <!-- Login form -->
+                <form method="POST" action="{% url 'login' %}" id="login-form" novalidate>
+                    {% csrf_token %}
+                    <input type="hidden" name="next" value="{{ next }}">
+
+                    <!-- Username -->
+                    <div class="field-group">
+                        <label class="field-label" for="id_username">Username</label>
+                        <div class="field-wrap">
+                            <input
+                                type="text"
+                                id="id_username"
+                                name="username"
+                                class="field-input{% if form.username.errors %} has-error{% endif %}"
+                                placeholder="Enter your username"
+                                autocomplete="username"
+                                autocapitalize="none"
+                                autofocus
+                                required
+                                value="{{ form.username.value|default:'' }}"
+                            >
+                        </div>
+                        {% if form.username.errors %}
+                        <div class="field-error">{{ form.username.errors.0 }}</div>
+                        {% endif %}
+                    </div>
+
+                    <!-- Password -->
+                    <div class="field-group">
+                        <label class="field-label" for="id_password">Password</label>
+                        <div class="field-wrap">
+                            <input
+                                type="password"
+                                id="id_password"
+                                name="password"
+                                class="field-input field-input--password{% if form.password.errors %} has-error{% endif %}"
+                                placeholder="Enter your password"
+                                autocomplete="current-password"
+                                required
+                            >
+                            <button type="button" class="pw-toggle" id="pw-toggle" aria-label="Show password">
+                                <!-- Eye icon -->
+                                <svg class="icon-eye" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                    <path d="M8 3C3 3 1 8 1 8s2 5 7 5 7-5 7-5-2-5-7-5z" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+                                    <circle cx="8" cy="8" r="2" stroke="currentColor" stroke-width="1.2" fill="none"/>
+                                </svg>
+                                <!-- Eye-off icon -->
+                                <svg class="icon-eye-off" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                    <path d="M8 3C3 3 1 8 1 8s2 5 7 5 7-5 7-5-2-5-7-5z" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+                                    <circle cx="8" cy="8" r="2" stroke="currentColor" stroke-width="1.2" fill="none"/>
+                                    <line x1="2" y1="2" x2="14" y2="14" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/>
+                                </svg>
+                            </button>
+                        </div>
+                        {% if form.password.errors %}
+                        <div class="field-error">{{ form.password.errors.0 }}</div>
+                        {% endif %}
+                    </div>
+
+                    <!-- Submit -->
+                    <button type="submit" class="btn-submit" id="btn-submit">
+                        <span class="btn-text">Sign In</span>
+                        <span class="btn-spinner"></span>
+                    </button>
+                </form>
+
+                <!-- Access note -->
+                <p class="access-note">
+                    Authorised personnel only. All access is logged and monitored.<br>
+                    To reset credentials, contact your IT administrator.
+                </p>
+
+                <!-- Feature callouts -->
+                <div class="callout-section">
+                    <!-- Callout 1: Predictive Failure Detection -->
+                    <div class="callout-row">
+                        <div class="callout-icon">
+                            <svg viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                <path d="M8 1.5L2 5v4.5c0 4.5 2.6 7 6 8 3.4-1 6-3.5 6-8V5L8 1.5z" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+                                <path d="M5.5 8L7 9.5 10.5 6" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/>
+                            </svg>
+                        </div>
+                        <div class="callout-text">
+                            <div class="callout-title">Predictive Failure Detection</div>
+                            <div class="callout-desc">ML models monitor 146 track sections across 8 zones</div>
+                        </div>
+                    </div>
+                    <!-- Callout 2: Real-time Network Monitoring -->
+                    <div class="callout-row">
+                        <div class="callout-icon">
+                            <svg viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                <polyline points="1,8 3,8 5,4 7,11 9,6 11,9 13,8 15,8" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+                            </svg>
+                        </div>
+                        <div class="callout-text">
+                            <div class="callout-title">Real-time Network Monitoring</div>
+                            <div class="callout-desc">Sensor telemetry updated every 30 seconds</div>
+                        </div>
+                    </div>
+                    <!-- Callout 3: Autonomous Alert Management -->
+                    <div class="callout-row">
+                        <div class="callout-icon">
+                            <svg viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                <polyline points="8,1 8,6" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/>
+                                <polyline points="11,4 8,6 5,4" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/>
+                                <polyline points="8,6 8,10" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/>
+                                <polyline points="5,8 8,10 11,8" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/>
+                                <polyline points="8,10 8,15" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/>
+                            </svg>
+                        </div>
+                        <div class="callout-text">
+                            <div class="callout-title">Autonomous Alert Management</div>
+                            <div class="callout-desc">AI agent classifies and escalates maintenance tickets</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Bottom bar -->
+            <div class="bottombar">
+                <span class="bottombar-text">v2.3.1 · Build 458</span>
+                <span class="bottombar-text">FAR AWAY 2026</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- ================================================================
+         VANILLA JS — Password toggle + Loading state
+         ================================================================ -->
+    <script>
+        (function() {
+            'use strict';
+
+            // Password show/hide toggle
+            var pwToggle = document.getElementById('pw-toggle');
+            var pwInput = document.getElementById('id_password');
+
+            if (pwToggle && pwInput) {
+                pwToggle.addEventListener('click', function() {
+                    var isPassword = pwInput.type === 'password';
+                    pwInput.type = isPassword ? 'text' : 'password';
+                    pwToggle.classList.toggle('is-visible', isPassword);
+                    pwToggle.setAttribute('aria-label', isPassword ? 'Hide password' : 'Show password');
+                });
+            }
+
+            // Form submit — show loading spinner
+            var form = document.getElementById('login-form');
+            var submitBtn = document.getElementById('btn-submit');
+
+            if (form && submitBtn) {
+                form.addEventListener('submit', function() {
+                    submitBtn.classList.add('is-loading');
+                    submitBtn.disabled = true;
+                });
+            }
+        })();
+    </script>
 </body>
 </html>
