@@ -26,6 +26,12 @@ def navigation(request):
             'description': 'Railway Network',
         },
         {
+            'name': 'Live Simulation',
+            'url': '/simulation/',
+            'icon': 'simulation',
+            'description': 'Generate & Test a Scenario',
+        },
+        {
             'name': 'Agent Tasks',
             'url': '/bounty/',
             'icon': 'agent_tasks',
