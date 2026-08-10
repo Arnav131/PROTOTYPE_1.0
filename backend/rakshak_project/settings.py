@@ -46,6 +46,7 @@ INSTALLED_APPS = [
     'map_view',
     'railway',
     'bounty',
+    'simulation',
 ]
 
 MIDDLEWARE = [
@@ -90,16 +91,30 @@ WSGI_APPLICATION = 'rakshak_project.wsgi.application'
 # ---------------------------------------------------------------------------
 # Database — PostgreSQL for development
 # ---------------------------------------------------------------------------
-DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.postgresql',
-        'NAME': os.environ.get('DB_NAME', 'rakshak'),
-        'USER': os.environ.get('DB_USER', 'postgres'),
-        'PASSWORD': os.environ.get('DB_PASSWORD', ''),
-        'HOST': os.environ.get('DB_HOST', 'localhost'),
-        'PORT': os.environ.get('DB_PORT', '5432'),
+_db_env_keys = ('DB_ENGINE', 'DB_NAME', 'DB_USER', 'DB_PASSWORD', 'DB_HOST', 'DB_PORT')
+_use_postgres = (
+    os.environ.get('DB_ENGINE', '').lower() in {'postgres', 'postgresql'}
+    or any(os.environ.get(key) for key in _db_env_keys[1:])
+)
+
+if _use_postgres:
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.postgresql',
+            'NAME': os.environ.get('DB_NAME', 'rakshak'),
+            'USER': os.environ.get('DB_USER', 'postgres'),
+            'PASSWORD': os.environ.get('DB_PASSWORD', ''),
+            'HOST': os.environ.get('DB_HOST', 'localhost'),
+            'PORT': os.environ.get('DB_PORT', '5432'),
+        }
     }
-}
+else:
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.sqlite3',
+            'NAME': BASE_DIR / 'db.sqlite3',
+        }
+    }
 
 # ---------------------------------------------------------------------------
 # Static files — served from frontend/static/
