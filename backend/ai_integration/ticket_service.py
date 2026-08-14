@@ -24,8 +24,8 @@ WHO SHOULD NEVER USE THIS:
 #   - rakshak_ticket (via Ticket.objects.create)
 #   - rakshak_audit_log (via AuditLog.objects.create)
 #
-# Current DB: SQLite
-# Future DB: PostgreSQL
+# Current DB: PostgreSQL
+# Future DB: None
 #
 # Why this code exists:
 #   Centralizes AI-driven ticket creation that was previously only
@@ -160,8 +160,8 @@ class TicketService:
         #             rakshak_track_section (for division lookup)
         # Uses: transaction.atomic()
         #
-        # Current DB: SQLite
-        # Future DB: PostgreSQL
+        # Current DB: PostgreSQL
+        # Future DB: None
         # PostgreSQL compatible: YES
         #   - All queries use standard Django ORM
         #   - Count aggregations work identically
@@ -266,8 +266,8 @@ class TicketService:
         #             rakshak_ticket
         # Uses: select_related(), filter(), count()
         #
-        # Current DB: SQLite
-        # Future DB: PostgreSQL
+        # Current DB: PostgreSQL
+        # Future DB: None
         # PostgreSQL compatible: YES
         #   - All queries use standard Django ORM
         #   - select_related() generates JOIN which works in both DBs

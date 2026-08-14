@@ -17,8 +17,8 @@ Tests:
 # Django test framework uses a temporary database that is destroyed
 # after tests complete.
 #
-# Current DB: SQLite (test DB is separate from production)
-# Future DB: PostgreSQL (tests will use PostgreSQL test DB)
+# Current DB: PostgreSQL (test DB is separate from production)
+# Future DB: None (tests will use PostgreSQL test DB)
 # Whether this code is PostgreSQL compatible: YES
 # Whether teammate needs to modify anything: NO
 # ---------------------------------------------------------------------------

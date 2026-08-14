@@ -47,8 +47,8 @@ CHANGE SUMMARY:
 #
 # This module writes to DB indirectly via AlertService and TicketService.
 #
-# Current DB: SQLite
-# Future DB: PostgreSQL
+# Current DB: PostgreSQL
+# Future DB: None
 # Whether this code is PostgreSQL compatible: YES
 # Whether teammate needs to modify anything: NO
 # Migration required: NO

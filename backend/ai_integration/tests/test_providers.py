@@ -14,8 +14,8 @@ Tests:
 #
 # These tests have ZERO database interaction.
 # They test pure Python classes (providers, registry, dataclasses).
-# Current DB: SQLite
-# Future DB: PostgreSQL
+# Current DB: PostgreSQL
+# Future DB: None
 # Whether this code is PostgreSQL compatible: YES (no DB interaction)
 # Whether teammate needs to modify anything: NO
 # ---------------------------------------------------------------------------

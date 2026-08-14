@@ -13,8 +13,8 @@ It is a pure Python service layer that provides:
 # DATABASE MIGRATION NOTE
 #
 # This app creates NO database tables.
-# Current DB: SQLite
-# Future DB: PostgreSQL
+# Current DB: PostgreSQL
+# Future DB: None
 # Whether this code is PostgreSQL compatible: YES (no DB interaction)
 # Whether teammate needs to modify anything: NO
 # ---------------------------------------------------------------------------

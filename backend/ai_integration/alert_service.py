@@ -24,8 +24,8 @@ WHO SHOULD NEVER USE THIS:
 #   - rakshak_alert (via Alert.objects.create)
 #   - rakshak_audit_log (via AuditLog.objects.create)
 #
-# Current DB: SQLite
-# Future DB: PostgreSQL
+# Current DB: PostgreSQL
+# Future DB: None
 #
 # Why this code exists:
 #   Centralizes AI-driven alert creation logic that was previously
@@ -121,8 +121,8 @@ class AlertService:
         # Inserts into: rakshak_alert, rakshak_audit_log
         # Uses: transaction.atomic()
         #
-        # Current DB: SQLite
-        # Future DB: PostgreSQL
+        # Current DB: PostgreSQL
+        # Future DB: None
         # PostgreSQL compatible: YES
         # Teammate action: NONE
         # ---------------------------------------------------------------
@@ -222,8 +222,8 @@ class AlertService:
         # Inserts into: rakshak_alert, rakshak_audit_log
         # Uses: transaction.atomic()
         #
-        # Current DB: SQLite
-        # Future DB: PostgreSQL
+        # Current DB: PostgreSQL
+        # Future DB: None
         # PostgreSQL compatible: YES
         # Teammate action: NONE
         # ---------------------------------------------------------------

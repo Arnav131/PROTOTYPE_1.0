@@ -40,8 +40,8 @@ WHO SHOULD NEVER USE THIS MODULE:
 #
 # This module has ZERO database interaction.
 # It defines pure Python dataclasses and an abstract base class.
-# Current DB: SQLite
-# Future DB: PostgreSQL
+# Current DB: PostgreSQL
+# Future DB: None
 # Whether this code is PostgreSQL compatible: YES (no DB interaction)
 # Whether teammate needs to modify anything: NO
 # ---------------------------------------------------------------------------

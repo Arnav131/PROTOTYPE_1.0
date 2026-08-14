@@ -59,4 +59,6 @@ def project_meta(request):
     return {
         "PROJECT_NAME": "Rakshak",
         "PROJECT_VERSION": "1.0",
+        "project_name": "RAKSHAK",
+        "project_subtitle": "Predictive Rail Maintenance",
     }
