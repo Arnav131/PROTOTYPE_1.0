@@ -32,7 +32,7 @@ WHO SHOULD NEVER USE THIS:
 #   available through the MaintenanceDispatchAgent.
 #
 # PostgreSQL compatible: YES
-#   - transaction.atomic() is fully supported (better than SQLite)
+#   - transaction.atomic() is fully supported
 #   - DecimalField for cost_estimate_inr is native PostgreSQL NUMERIC
 #   - CharField(unique=True) for ticket_code uses PostgreSQL unique index
 #   - ForeignKey fields use standard integer references
@@ -124,7 +124,7 @@ class TicketService:
         # DATABASE MIGRATION NOTE
         #
         # ticket_code is CharField(unique=True) in Ticket model.
-        # Works identically in SQLite and PostgreSQL.
+        # Works natively in PostgreSQL.
         # Teammate action: NONE
         # ---------------------------------------------------------------
         """

@@ -45,7 +45,6 @@ INSTALLED_APPS = [
     'tickets',
     'map_view',
     'railway',
-    'bounty',
     'ai_integration',
 ]
 
@@ -89,17 +88,16 @@ TEMPLATES = [
 WSGI_APPLICATION = 'rakshak_project.wsgi.application'
 
 # ---------------------------------------------------------------------------
-# Database — PostgreSQL for development
+# Database — PostgreSQL for development & production
 # ---------------------------------------------------------------------------
+import dj_database_url
+
 DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.postgresql',
-        'NAME': os.environ.get('DB_NAME', 'rakshak'),
-        'USER': os.environ.get('DB_USER', 'postgres'),
-        'PASSWORD': os.environ.get('DB_PASSWORD', ''),
-        'HOST': os.environ.get('DB_HOST', 'localhost'),
-        'PORT': os.environ.get('DB_PORT', '5432'),
-    }
+    'default': dj_database_url.config(
+        default=os.environ.get('DATABASE_URL', 'postgresql://postgres:password@localhost:5432/rakshak'),
+        conn_max_age=600,
+        conn_health_checks=True,
+    )
 }
 
 # ---------------------------------------------------------------------------
@@ -139,7 +137,7 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 # DATABASE MIGRATION NOTE
 #
 # This configuration block does NOT affect the database.
-# Current DB: SQLite
+# Current DB: PostgreSQL
 # Future DB: PostgreSQL
 # Whether this code is PostgreSQL compatible: YES (no DB interaction)
 # Whether teammate needs to modify anything: NO

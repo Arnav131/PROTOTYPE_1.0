@@ -61,6 +61,9 @@ class MockProvider(BaseAIProvider):
         self._fault_type = fault_type
         self._alert_level = alert_level
 
+    def get_metadata(self):
+        return {"version": "mock", "name": "MockProvider"}
+
     def predict(self, request: PredictionRequest) -> PredictionResponse:
         return PredictionResponse(
             is_anomaly=self._anomaly,

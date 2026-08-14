@@ -32,7 +32,7 @@ WHO SHOULD NEVER USE THIS:
 #   duplicated across agents. Uses transaction.atomic() for consistency.
 #
 # PostgreSQL compatible: YES
-#   - transaction.atomic() is fully supported (better than SQLite)
+#   - transaction.atomic() is fully supported
 #   - DecimalField for confidence_score is native PostgreSQL NUMERIC
 #   - CharField(unique=True) for alert_code uses PostgreSQL unique index
 #   - DateTimeField for generated_at uses PostgreSQL TIMESTAMPTZ
@@ -86,7 +86,7 @@ class AlertService:
         # DATABASE MIGRATION NOTE
         #
         # alert_code is a CharField(unique=True) in the Alert model.
-        # Both SQLite and PostgreSQL enforce uniqueness identically.
+        # PostgreSQL enforces uniqueness.
         # Teammate action: NONE
         # ---------------------------------------------------------------
         """

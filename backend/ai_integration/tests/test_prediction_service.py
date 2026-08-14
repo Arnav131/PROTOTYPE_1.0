@@ -121,9 +121,13 @@ class TestPredictionService(TestCase):
     def test_predict_batch(self):
         """predict_batch processes multiple readings."""
         from ai_integration import registry as reg_module
+        from ai_integration import prediction_service as svc_module
 
-        original = reg_module.ai_provider_registry
+        original_reg = reg_module.ai_provider_registry
+        original_svc = svc_module.ai_provider_registry
+        
         reg_module.ai_provider_registry = self.registry
+        svc_module.ai_provider_registry = self.registry
         self.registry._default_name = "mock"
         self.registry._config_loaded = True
 
@@ -146,18 +150,24 @@ class TestPredictionService(TestCase):
                 self.assertIsInstance(resp, PredictionResponse)
 
         finally:
-            reg_module.ai_provider_registry = original
+            reg_module.ai_provider_registry = original_reg
+            svc_module.ai_provider_registry = original_svc
 
     def test_no_provider_returns_safe_response(self):
         """Missing provider returns safe default response."""
         from ai_integration import registry as reg_module
+        from ai_integration import prediction_service as svc_module
 
-        original = reg_module.ai_provider_registry
+        original_reg = reg_module.ai_provider_registry
+        original_svc = svc_module.ai_provider_registry
+        
         empty_registry = AIProviderRegistry()
         empty_registry._config_loaded = True
         empty_registry._provider_configs = {}
         empty_registry._default_name = "nonexistent"
+        
         reg_module.ai_provider_registry = empty_registry
+        svc_module.ai_provider_registry = empty_registry
 
         try:
             service = PredictionService()
@@ -174,7 +184,8 @@ class TestPredictionService(TestCase):
             self.assertIn("error", response.metadata)
 
         finally:
-            reg_module.ai_provider_registry = original
+            reg_module.ai_provider_registry = original_reg
+            svc_module.ai_provider_registry = original_svc
 
     def test_get_health(self):
         """get_health returns registry health data."""
