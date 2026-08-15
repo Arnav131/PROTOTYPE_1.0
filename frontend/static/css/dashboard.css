@@ -971,73 +971,9 @@ html[data-theme="dark"] .theme-toggle .icon-sun { display: inline-block; }
 }
 
 /* ================================================================== */
-/* 17. LOGIN PAGE                                                     */
+/* 17. LOGIN PAGE — Styles are self-contained in login.html            */
 /* ================================================================== */
-.login-main { 
-    min-height: 100vh; 
-    display: flex; 
-    align-items: center; 
-    justify-content: center; 
-    background: var(--bg-primary);
-}
 
-.login-card { 
-    width: 360px; 
-    padding: 32px; 
-    border: 1px solid var(--border-color); 
-    border-radius: 12px;
-    background: var(--bg-surface); 
-    display: flex; 
-    flex-direction: column; 
-    gap: 14px; 
-}
-
-.login-card h2 {
-    text-align: center;
-    font-size: 1.5rem;
-    font-weight: 700;
-    color: var(--text-primary);
-    margin-bottom: 8px;
-}
-
-.login-card input { 
-    padding: 10px; 
-    border-radius: var(--radius); 
-    border: 1px solid var(--border-color); 
-    background: var(--bg-input); 
-    color: var(--text-primary);
-    font-family: 'Inter', sans-serif;
-    font-size: 14px;
-    transition: border-color var(--transition-fast);
-}
-
-.login-card input:focus {
-    outline: none;
-    border-color: var(--accent-blue);
-}
-
-.login-card button { 
-    padding: 10px; 
-    border-radius: var(--radius); 
-    background: var(--accent-blue); 
-    color: #fff; 
-    cursor: pointer; 
-    font-weight: 600;
-    font-family: 'Inter', sans-serif;
-    font-size: 14px;
-    border: none;
-    transition: background var(--transition-fast);
-}
-
-.login-card button:hover {
-    background: var(--accent-blue-hover);
-}
-
-.login-error { 
-    color: var(--accent-red); 
-    font-size: 13px; 
-    text-align: center;
-}
 
 /* ================================================================== */
 /* 18. ALERTS PAGE                                                    */
@@ -1507,5 +1443,4 @@ html[data-theme="dark"] .theme-toggle .icon-sun { display: inline-block; }
     .kpi-strip { flex-direction: column; }
     .telemetry-grid { grid-template-columns: 1fr; }
     .summary-cards { grid-template-columns: 1fr; }
-    .login-card { width: 90%; padding: 24px; }
 }

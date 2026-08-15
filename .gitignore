@@ -13,6 +13,7 @@ eggs/
 
 # Django
 db.sqlite3
+*.sqlite3
 db.sqlite3-journal
 staticfiles/
 media/
@@ -22,6 +23,8 @@ venv/
 env/
 .venv/
 .env
+.env.*
+!.env.example
 
 # IDE
 .vscode/
