@@ -40,7 +40,7 @@ Meta:   GBM combining all tiers → calibrated probability
 # This agent creates Alert records via Alert.objects.create()
 # and writes AuditLog entries via self.log_event().
 #
-# Current DB: SQLite
+# Current DB: PostgreSQL
 # Future DB: PostgreSQL
 #
 # Why this code exists:
@@ -151,7 +151,7 @@ class AnomalyDetectionAgent(BaseAgent):
         # This method creates Alert objects (via _create_alert and
         # _create_predictive_alert) which INSERT into rakshak_alert.
         #
-        # Current DB: SQLite
+        # Current DB: PostgreSQL
         # Future DB: PostgreSQL
         # PostgreSQL compatible: YES
         # Teammate action: NONE
@@ -294,7 +294,7 @@ class AnomalyDetectionAgent(BaseAgent):
         # Inserts into: rakshak_alert
         # Uses: transaction.atomic(), Alert.objects.create()
         #
-        # Current DB: SQLite
+        # Current DB: PostgreSQL
         # Future DB: PostgreSQL
         # PostgreSQL compatible: YES
         # Teammate action: NONE
@@ -369,7 +369,7 @@ class AnomalyDetectionAgent(BaseAgent):
         # Inserts into: rakshak_alert
         # Uses: transaction.atomic(), Alert.objects.create()
         #
-        # Current DB: SQLite
+        # Current DB: PostgreSQL
         # Future DB: PostgreSQL
         # PostgreSQL compatible: YES
         # Teammate action: NONE

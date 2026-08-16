@@ -14,8 +14,8 @@ Tests:
 #
 # These tests have ZERO database interaction.
 # They test pure Python classes (providers, registry, dataclasses).
-# Current DB: SQLite
-# Future DB: PostgreSQL
+# Current DB: PostgreSQL
+# Future DB: None
 # Whether this code is PostgreSQL compatible: YES (no DB interaction)
 # Whether teammate needs to modify anything: NO
 # ---------------------------------------------------------------------------
@@ -60,6 +60,9 @@ class MockProvider(BaseAIProvider):
         self._score = score
         self._fault_type = fault_type
         self._alert_level = alert_level
+
+    def get_metadata(self):
+        return {"version": "mock", "name": "MockProvider"}
 
     def predict(self, request: PredictionRequest) -> PredictionResponse:
         return PredictionResponse(

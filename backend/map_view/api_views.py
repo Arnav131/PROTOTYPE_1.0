@@ -78,7 +78,7 @@ def api_stations(request):
     # DATABASE TEAM NOTE:
     # Optimization: Replaced N+1 queries with Django ORM annotations.
     # Why: Previously, each station executed 3 additional queries in a loop (2 for alerts, 1 for tracks).
-    # Compatibility: Fully compatible with SQLite and PostgreSQL.
+    # Compatibility: Fully compatible with PostgreSQL.
     # Index impact: Uses existing indexes on status and active fields. No new indexes required.
     # Migration required: NO.
     stations = (
@@ -235,7 +235,7 @@ def api_tickets(request):
     # DATABASE TEAM NOTE:
     # Optimization: Added track_section__end_station to select_related to eliminate N+1 query.
     # Why: The loop accesses t.track_section.end_station.station_name, which previously triggered a query per ticket.
-    # Compatibility: Fully compatible with SQLite and PostgreSQL.
+    # Compatibility: Fully compatible with PostgreSQL.
     # Migration required: NO.
     tickets = (
         Ticket.objects

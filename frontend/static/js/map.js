@@ -76,11 +76,11 @@ function initRakshakControlMap() {
     // 2. Fetch Datasets (36,000+ Real OSM Lines + Stations + RAKSHAK)
     // ----------------------------------------------------------------
     Promise.all([
-        fetch('/static/data/railway/india_railways_major.geojson').then(function(r) { return r.json(); }),
-        fetch('/static/data/railway/india_railways_full.geojson').then(function(r) { return r.json(); }),
-        fetch('/static/data/stations/india_stations.geojson').then(function(r) { return r.json(); }),
-        fetch('/static/data/zones/rakshak_zones.json').then(function(r) { return r.json(); }),
-        fetch('/static/data/monitoring/rakshak_monitoring.json').then(function(r) { return r.json(); })
+        fetch('/static/data/railway/india_railways_major.geojson').then(function(r) { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.json(); }),
+        fetch('/static/data/railway/india_railways_full.geojson').then(function(r) { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.json(); }),
+        fetch('/static/data/stations/india_stations.geojson').then(function(r) { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.json(); }),
+        fetch('/static/data/zones/rakshak_zones.json').then(function(r) { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.json(); }),
+        fetch('/static/data/monitoring/rakshak_monitoring.json').then(function(r) { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.json(); })
     ]).then(function(results) {
         g_railwayMajorData = results[0];
         g_railwayFullData  = results[1];

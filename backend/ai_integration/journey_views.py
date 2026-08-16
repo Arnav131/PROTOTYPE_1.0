@@ -29,8 +29,8 @@ CHANGE SUMMARY:
 #
 # This module has ZERO direct database interaction.
 # It delegates all DB operations to JourneyService → AlertService/TicketService.
-# Current DB: SQLite
-# Future DB: PostgreSQL
+# Current DB: PostgreSQL
+# Future DB: None
 # Whether this code is PostgreSQL compatible: YES (no direct DB interaction)
 # Whether teammate needs to modify anything: NO
 # Migration required: NO

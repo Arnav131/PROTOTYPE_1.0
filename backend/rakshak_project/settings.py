@@ -45,8 +45,7 @@ INSTALLED_APPS = [
     'tickets',
     'map_view',
     'railway',
-    'bounty',
-    'simulation',
+    'ai_integration',
 ]
 
 MIDDLEWARE = [
@@ -89,32 +88,17 @@ TEMPLATES = [
 WSGI_APPLICATION = 'rakshak_project.wsgi.application'
 
 # ---------------------------------------------------------------------------
-# Database — PostgreSQL for development
+# Database — PostgreSQL for development & production
 # ---------------------------------------------------------------------------
-_db_env_keys = ('DB_ENGINE', 'DB_NAME', 'DB_USER', 'DB_PASSWORD', 'DB_HOST', 'DB_PORT')
-_use_postgres = (
-    os.environ.get('DB_ENGINE', '').lower() in {'postgres', 'postgresql'}
-    or any(os.environ.get(key) for key in _db_env_keys[1:])
-)
+import dj_database_url
 
-if _use_postgres:
-    DATABASES = {
-        'default': {
-            'ENGINE': 'django.db.backends.postgresql',
-            'NAME': os.environ.get('DB_NAME', 'rakshak'),
-            'USER': os.environ.get('DB_USER', 'postgres'),
-            'PASSWORD': os.environ.get('DB_PASSWORD', ''),
-            'HOST': os.environ.get('DB_HOST', 'localhost'),
-            'PORT': os.environ.get('DB_PORT', '5432'),
-        }
-    }
-else:
-    DATABASES = {
-        'default': {
-            'ENGINE': 'django.db.backends.sqlite3',
-            'NAME': BASE_DIR / 'db.sqlite3',
-        }
-    }
+DATABASES = {
+    'default': dj_database_url.config(
+        default=os.environ.get('DATABASE_URL', 'postgresql://postgres:password@localhost:5432/rakshak'),
+        conn_max_age=600,
+        conn_health_checks=True,
+    )
+}
 
 # ---------------------------------------------------------------------------
 # Static files — served from frontend/static/
@@ -153,7 +137,7 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 # DATABASE MIGRATION NOTE
 #
 # This configuration block does NOT affect the database.
-# Current DB: SQLite
+# Current DB: PostgreSQL
 # Future DB: PostgreSQL
 # Whether this code is PostgreSQL compatible: YES (no DB interaction)
 # Whether teammate needs to modify anything: NO
@@ -171,7 +155,7 @@ RAKSHAK_AI = {
         # This is the default for prototype and local development.
         'local': {
             'CLASS': 'ai_integration.local_provider.LocalPickleProvider',
-            'MODEL_DIR': str(BASE_DIR.parent / 'ai_engin' / 'trained_models'),
+            'MODEL_DIR': str(BASE_DIR / 'ai_models'),
             'WINDOW_SIZE': 16,
             'ALERT_THRESHOLD': 0.7,
             'CRITICAL_THRESHOLD': 0.9,

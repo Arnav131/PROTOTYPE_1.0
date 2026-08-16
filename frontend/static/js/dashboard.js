@@ -2,7 +2,7 @@
 //
 // Rakshak — Core JavaScript
 // Handles: live clock, KPI counter animations, Chart.js initialization,
-//          navigation toggle, and shared utilities.
+//          map initialization, and shared utilities.
 // This file is loaded on every page via base.html.
 
 'use strict';
@@ -39,7 +39,7 @@ function initLiveClock() {
 // KPI COUNTER ANIMATION — Animates numbers from 0 to target
 // ====================================================================
 function animateCounters() {
-    const counters = document.querySelectorAll('.kpi-value[data-target]');
+    const counters = document.querySelectorAll('.kpi-item-value[data-target]');
 
     counters.forEach(counter => {
         const target = parseFloat(counter.getAttribute('data-target'));
@@ -131,6 +131,37 @@ function getChartDefaults() {
     };
 }
 
+function getCompactChartDefaults() {
+    return {
+        responsive: true,
+        maintainAspectRatio: false,
+        interaction: { mode: 'index', intersect: false },
+        plugins: {
+            legend: { display: false },
+            tooltip: {
+                backgroundColor: '#171A21',
+                titleColor: '#F5F5F5',
+                bodyColor: '#9CA3AF',
+                borderColor: '#2A2F3A',
+                borderWidth: 1,
+                padding: 8,
+                cornerRadius: 6,
+                titleFont: { family: 'Inter', size: 11, weight: '600' },
+                bodyFont: { family: 'JetBrains Mono', size: 10 },
+            },
+        },
+        scales: {
+            x: {
+                display: false, // Hide x-axis for compactness
+            },
+            y: {
+                grid: { color: 'rgba(255,255,255,0.04)', drawBorder: false },
+                ticks: { color: '#6B7280', font: { family: 'JetBrains Mono', size: 9 }, maxTicksLimit: 4 },
+            },
+        },
+    };
+}
+
 /**
  * Create a gradient fill for line charts.
  * @param {CanvasRenderingContext2D} ctx
@@ -163,6 +194,14 @@ function getChartColorConfig(type, values) {
         const absVal = Math.abs(lastValue);
         if (absVal > 6) status = 'critical';
         else if (absVal >= 2) status = 'warning';
+    } else if (type === 'acoustic') {
+        status = 'healthy';
+    } else if (type === 'strain') {
+        if (lastValue > 3.5) status = 'critical';
+        else if (lastValue >= 2.5) status = 'warning';
+    } else if (type === 'accelerometer') {
+        if (lastValue > 1.8) status = 'critical';
+        else if (lastValue >= 1.2) status = 'warning';
     }
 
     if (status === 'critical') return { main: '#ef4444', bg: 'rgba(239,68,68,0.2)' }; // Red
@@ -170,211 +209,222 @@ function getChartColorConfig(type, values) {
     return { main: '#10b981', bg: 'rgba(16,185,129,0.2)' }; // Green
 }
 
+function updateChartStats(id, values, statsData, statKey) {
+    const maxEl = document.getElementById(`stat-${id}-max`);
+    const minEl = document.getElementById(`stat-${id}-min`);
+    if (maxEl && minEl) {
+        if (statsData && statsData[statKey]) {
+            maxEl.textContent = statsData[statKey].max.toFixed(2);
+            minEl.textContent = statsData[statKey].min.toFixed(2);
+        } else if (values && values.length > 0) {
+            maxEl.textContent = Math.max(...values).toFixed(2);
+            minEl.textContent = Math.min(...values).toFixed(2);
+        }
+    }
+}
+
 /**
- * Initialize all three dashboard sensor trend charts.
+ * Initialize all six dashboard sensor trend charts.
  * Called from dashboard.html after DOM load with parsed JSON data.
- * @param {Object} data - Sensor trend data with timestamps, vibration, temperature, gauge_deviation
+ * @param {Object} data - Sensor trend data
  */
 function initDashboardCharts(data) {
     // Only run on pages that have the chart canvases
     if (!document.getElementById('chart-vibration')) return;
 
-    // Store data for re-rendering on theme change
+    // Store data for re-rendering if needed
     window.rakshakLastChartData = data;
 
-    // Prevent duplicate chart initialization
-    if (window.rakshakChartInstances.vibration) window.rakshakChartInstances.vibration.destroy();
-    if (window.rakshakChartInstances.temperature) window.rakshakChartInstances.temperature.destroy();
-    if (window.rakshakChartInstances.gauge) window.rakshakChartInstances.gauge.destroy();
+    // Destroy existing instances
+    ['vibration', 'temperature', 'gauge', 'acoustic', 'strain', 'accelerometer'].forEach(type => {
+        if (window.rakshakChartInstances[type]) {
+            window.rakshakChartInstances[type].destroy();
+        }
+    });
 
     const timestamps = data.timestamps;
-    const pointBorder = isDarkMode() ? '#111111' : '#f0f0f0';
-
-    // --- Vibration Chart ---
-    const vibCtx = document.getElementById('chart-vibration').getContext('2d');
-    const vibColors = getChartColorConfig('vibration', data.vibration);
-    window.rakshakChartInstances.vibration = new Chart(vibCtx, {
-        type: 'line',
-        data: {
-            labels: timestamps,
-            datasets: [{
-                label: 'Vibration (mm/s)',
-                data: data.vibration,
-                borderColor: vibColors.main,
-                backgroundColor: createGradient(vibCtx, vibColors.bg, 'rgba(0,0,0,0)'),
-                borderWidth: 2,
-                pointBackgroundColor: vibColors.main,
-                pointBorderColor: pointBorder,
-                pointBorderWidth: 2,
-                pointRadius: 3,
-                pointHoverRadius: 6,
-                fill: true,
-                tension: 0.4,
-            }],
-        },
-        options: {
-            ...getChartDefaults(),
-            scales: {
-                ...getChartDefaults().scales,
-                y: {
-                    ...getChartDefaults().scales.y,
-                    min: 0,
-                    max: 7,
-                    ticks: {
-                        ...getChartDefaults().scales.y.ticks,
-                        stepSize: 1,
-                    },
-                },
+    const pointBorder = '#171A21';
+    
+    function createCompactChart(id, label, values, statsKey) {
+        const canvas = document.getElementById(`chart-${id}`);
+        if (!canvas) return;
+        const ctx = canvas.getContext('2d');
+        const colors = getChartColorConfig(id, values);
+        
+        window.rakshakChartInstances[id] = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: timestamps,
+                datasets: [{
+                    label: label,
+                    data: values,
+                    borderColor: colors.main,
+                    backgroundColor: createGradient(ctx, colors.bg, 'rgba(0,0,0,0)'),
+                    borderWidth: 1.5,
+                    pointBackgroundColor: colors.main,
+                    pointBorderColor: pointBorder,
+                    pointBorderWidth: 1,
+                    pointRadius: 2,
+                    pointHoverRadius: 4,
+                    fill: true,
+                    tension: 0.4,
+                }],
             },
-        },
-    });
-
-    // --- Temperature Chart ---
-    const tempCtx = document.getElementById('chart-temperature').getContext('2d');
-    const tempColors = getChartColorConfig('temperature', data.temperature);
-    window.rakshakChartInstances.temperature = new Chart(tempCtx, {
-        type: 'line',
-        data: {
-            labels: timestamps,
-            datasets: [{
-                label: 'Temperature (°C)',
-                data: data.temperature,
-                borderColor: tempColors.main,
-                backgroundColor: createGradient(tempCtx, tempColors.bg, 'rgba(0,0,0,0)'),
-                borderWidth: 2,
-                pointBackgroundColor: tempColors.main,
-                pointBorderColor: pointBorder,
-                pointBorderWidth: 2,
-                pointRadius: 3,
-                pointHoverRadius: 6,
-                fill: true,
-                tension: 0.4,
-            }],
-        },
-        options: {
-            ...getChartDefaults(),
-            scales: {
-                ...getChartDefaults().scales,
-                y: {
-                    ...getChartDefaults().scales.y,
-                    min: 20,
-                    max: 60,
-                    ticks: {
-                        ...getChartDefaults().scales.y.ticks,
-                        stepSize: 10,
-                    },
-                },
-            },
-        },
-    });
-
-    // --- Gauge Deviation Chart ---
-    const gaugeCtx = document.getElementById('chart-gauge').getContext('2d');
-    const gaugeColors = getChartColorConfig('gauge', data.gauge_deviation);
-    window.rakshakChartInstances.gauge = new Chart(gaugeCtx, {
-        type: 'line',
-        data: {
-            labels: timestamps,
-            datasets: [{
-                label: 'Gauge Deviation (mm)',
-                data: data.gauge_deviation,
-                borderColor: gaugeColors.main,
-                backgroundColor: createGradient(gaugeCtx, gaugeColors.bg, 'rgba(0,0,0,0)'),
-                borderWidth: 2,
-                pointBackgroundColor: gaugeColors.main,
-                pointBorderColor: pointBorder,
-                pointBorderWidth: 2,
-                pointRadius: 3,
-                pointHoverRadius: 6,
-                fill: true,
-                tension: 0.4,
-            }],
-        },
-        options: {
-            ...getChartDefaults(),
-            scales: {
-                ...getChartDefaults().scales,
-                y: {
-                    ...getChartDefaults().scales.y,
-                    min: 0,
-                    max: 4,
-                    ticks: {
-                        ...getChartDefaults().scales.y.ticks,
-                        stepSize: 0.5,
-                    },
-                },
-            },
-        },
-    });
-}
-
-// ====================================================================
-// THEME TOGGLE — Dark/Light mode with localStorage persistence
-// ====================================================================
-function initThemeToggle() {
-    const toggle = document.getElementById('theme-toggle');
-    const root = document.documentElement;
-
-    // Determine initial theme: localStorage > system preference > dark (default)
-    const stored = localStorage.getItem('rakshak-theme');
-    if (stored) {
-        root.setAttribute('data-theme', stored);
-    } else {
-        // Check system preference
-        const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-        root.setAttribute('data-theme', prefersDark ? 'dark' : 'light');
+            options: getCompactChartDefaults(),
+        });
+        
+        updateChartStats(id, values, data.sensor_stats, statsKey || id);
     }
 
-    if (!toggle) return;
-
-    toggle.addEventListener('click', function () {
-        const current = root.getAttribute('data-theme') || 'dark';
-        const next = current === 'dark' ? 'light' : 'dark';
-        root.setAttribute('data-theme', next);
-        localStorage.setItem('rakshak-theme', next);
-
-        // Re-render charts if they exist (to update colors)
-        if (window.rakshakLastChartData) {
-            initDashboardCharts(window.rakshakLastChartData);
-        }
-    });
-
-    // Listen for system preference changes
-    window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', function (e) {
-        if (!localStorage.getItem('rakshak-theme')) {
-            root.setAttribute('data-theme', e.matches ? 'dark' : 'light');
-        }
-    });
+    createCompactChart('vibration', 'Vibration (mm/s)', data.vibration);
+    createCompactChart('temperature', 'Temperature (°C)', data.temperature);
+    createCompactChart('gauge', 'Gauge Deviation (mm)', data.gauge_deviation, 'gauge_deviation');
+    createCompactChart('acoustic', 'Acoustic Emissions (dB)', data.acoustic_emissions, 'acoustic_emissions');
+    createCompactChart('strain', 'Strain Gauge Load (kN)', data.strain_gauge_load, 'strain_gauge_load');
+    createCompactChart('accelerometer', 'Accelerometer Data (g)', data.accelerometer_data, 'accelerometer_data');
 }
 
-// ====================================================================
-// NAVIGATION TOGGLE (mobile)
-// ====================================================================
-function initNavToggle() {
-    const toggle = document.getElementById('nav-toggle');
-    const navInner = document.querySelector('.nav-inner');
-
-    if (!toggle || !navInner) return;
-
-    toggle.addEventListener('click', function () {
-        navInner.classList.toggle('nav-inner--open');
-        toggle.classList.toggle('nav-toggle--active');
+function initDashboardMap() {
+    var mapEl = document.getElementById('dashboard-map');
+    if (!mapEl) return;
+    
+    var map = L.map('dashboard-map', {
+        center: [22.5, 79.0],
+        zoom: 5,
+        zoomControl: true,
+        attributionControl: false,
+        preferCanvas: true,
     });
+    
+    var darkLayer = L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+        maxZoom: 19,
+    });
+    
+    var lightLayer = L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
+        maxZoom: 19,
+    });
+
+    if (isDarkMode()) {
+        darkLayer.addTo(map);
+    } else {
+        lightLayer.addTo(map);
+    }
+    
+    window.rakshakMap = {
+        map: map,
+        darkLayer: darkLayer,
+        lightLayer: lightLayer
+    };
+    
+    var mapBounds = L.latLngBounds();
+    
+    Promise.all([
+        fetch('/api/stations/').then(r => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.json(); }).catch(() => []),
+        fetch('/api/routes/').then(r => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.json(); }).catch(() => [])
+    ]).then(([stations, routes]) => {
+        stations.forEach(s => {
+            if (s.latitude && s.longitude) {
+                var color = s.health === 'critical' ? '#DC2626' : s.health === 'warning' ? '#D97706' : '#16A34A';
+                L.circleMarker([s.latitude, s.longitude], {
+                    radius: 3,
+                    fillColor: color,
+                    fillOpacity: 0.8,
+                    color: color,
+                    weight: 1,
+                }).addTo(map);
+                mapBounds.extend([s.latitude, s.longitude]);
+            }
+        });
+        
+        routes.forEach(route => {
+            if (route.geometry && route.geometry.length >= 2) {
+                var color = route.status === 'critical' ? '#DC2626' : route.status === 'warning' ? '#D97706' : 'rgba(37,99,235,0.4)';
+                var polyline = L.polyline(route.geometry, {
+                    color: color,
+                    weight: 1.5,
+                    opacity: 0.7,
+                }).addTo(map);
+                mapBounds.extend(polyline.getBounds());
+            }
+        });
+        
+        setTimeout(() => {
+            requestAnimationFrame(() => {
+                map.invalidateSize();
+                if (mapBounds.isValid()) {
+                    // Filter out crazy bounds that include Africa/Middle East
+                    var indiaBounds = L.latLngBounds([8.4, 68.7], [37.6, 97.2]);
+                    if (!indiaBounds.contains(mapBounds.getSouthWest()) || !indiaBounds.contains(mapBounds.getNorthEast())) {
+                        // Some geometry is wildly out of bounds, use India as fallback
+                        map.fitBounds(indiaBounds, { padding: [20, 20] });
+                    } else {
+                        map.fitBounds(mapBounds, { padding: [20, 20] });
+                    }
+                } else {
+                    map.fitBounds([[8.4, 68.7], [37.6, 97.2]], { padding: [20, 20] });
+                }
+            });
+        }, 100);
+    });
+    
+    let resizeTimeout;
+    const resizeObserver = new ResizeObserver(() => {
+        clearTimeout(resizeTimeout);
+        resizeTimeout = setTimeout(() => {
+            requestAnimationFrame(() => {
+                map.invalidateSize();
+            });
+        }, 50);
+    });
+    resizeObserver.observe(mapEl);
 }
 
 // ====================================================================
 // THEME-AWARE HELPERS
 // ====================================================================
 function isDarkMode() {
-    return document.documentElement.getAttribute('data-theme') !== 'light';
+    const theme = document.documentElement.getAttribute('data-theme');
+    return theme !== 'light';
 }
+
+window.addEventListener('themeChanged', function(e) {
+    const isDark = e.detail.theme === 'dark';
+    
+    // Update map tile layers
+    if (window.rakshakMap) {
+        if (isDark) {
+            window.rakshakMap.map.removeLayer(window.rakshakMap.lightLayer);
+            window.rakshakMap.map.addLayer(window.rakshakMap.darkLayer);
+        } else {
+            window.rakshakMap.map.removeLayer(window.rakshakMap.darkLayer);
+            window.rakshakMap.map.addLayer(window.rakshakMap.lightLayer);
+        }
+        window.rakshakMap.map.invalidateSize();
+    }
+    
+    // Update Chart.js instances
+    var trendsEl = document.getElementById('sensor-trends-data');
+    if (trendsEl && window.rakshakChartInstances) {
+        Object.values(window.rakshakChartInstances).forEach(chart => chart.destroy());
+        window.rakshakChartInstances = {};
+        initDashboardCharts(JSON.parse(trendsEl.textContent));
+    }
+});
 
 // ====================================================================
 // INITIALIZE ON DOM READY
 // ====================================================================
 document.addEventListener('DOMContentLoaded', function () {
-    initThemeToggle();
     initLiveClock();
     animateCounters();
-    initNavToggle();
+    
+    // Dashboard charts
+    var trendsEl = document.getElementById('sensor-trends-data');
+    if (trendsEl) {
+        var trendData = JSON.parse(trendsEl.textContent);
+        initDashboardCharts(trendData);
+    }
+    
+    // Dashboard map
+    initDashboardMap();
 });

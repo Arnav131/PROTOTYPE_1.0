@@ -25,18 +25,6 @@ def navigation(request):
             'icon': 'map',
             'description': 'Railway Network',
         },
-        {
-            'name': 'Live Simulation',
-            'url': '/simulation/',
-            'icon': 'simulation',
-            'description': 'Generate & Test a Scenario',
-        },
-        {
-            'name': 'Agent Tasks',
-            'url': '/bounty/',
-            'icon': 'agent_tasks',
-            'description': 'Task Checklist & Review',
-        },
     ]
     
     # Add admin link for staff users
@@ -65,4 +53,6 @@ def project_meta(request):
     return {
         "PROJECT_NAME": "Rakshak",
         "PROJECT_VERSION": "1.0",
+        "project_name": "RAKSHAK",
+        "project_subtitle": "Predictive Rail Maintenance",
     }
