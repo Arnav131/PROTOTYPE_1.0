@@ -83,6 +83,19 @@ class MockProvider(BaseAIProvider):
     def get_provider_name(self):
         return "mock"
 
+    def get_metadata(self):
+        return {
+            "window_size": 1,
+            "model_version": "test",
+            "supported_features": [
+                "ambient_temp",
+                "humidity",
+                "vibration_rms",
+                "gauge_width",
+            ],
+            "thresholds": {},
+        }
+
 
 # ===================================================================
 # DATA CONTRACT TESTS
