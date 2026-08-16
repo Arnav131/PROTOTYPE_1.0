@@ -109,30 +109,34 @@
                 </div>
                 {% endif %}
             </div>
-        </aside>
-        
-        <!-- MAIN CONTENT AREA -->
-        <div class="app-content-wrapper">
-            <!-- TOP BAR: Only IST Clock -->
-            <header class="app-header" id="control-header">
-                <div class="top-bar-right">
-                    <div class="live-clock">
-                        <div class="clock-time" id="clock-time">--:--:--</div>
-                        <div class="clock-date" id="clock-date">----/--/--</div>
-                        <span class="clock-timezone">IST</span>
-                    </div>
-                </div>
-            </header>
-            
-            <main class="control-main" id="main-content">
-                {% block content %}{% endblock %}
-            </main>
-            
-            <!-- FOOTER -->
-            <footer class="control-footer">
-                <span>RAKSHAK v1.1 — Predictive Rail Maintenance</span>
-                <span>FAR AWAY 2026</span>
-            </footer>
+        </header>
+
+    <!-- ================================================================== -->
+    <!-- NAVIGATION BAR                                                     -->
+    <!-- ================================================================== -->
+    <nav class="control-nav" id="main-nav">
+        <div class="nav-inner">
+            {% for item in nav_items %}
+            <a href="{{ item.url }}"
+               class="nav-item {% if item.active %}nav-item--active{% endif %}"
+               id="nav-{{ item.icon }}">
+                <span class="nav-icon">
+                    {% if item.icon == 'dashboard' %}📊
+                    {% elif item.icon == 'alerts' %}🔔
+                    {% elif item.icon == 'tickets' %}🎫
+                    {% elif item.icon == 'map' %}🗺️
+                    {% elif item.icon == 'agent_tasks' %}🤖
+                    {% elif item.icon == 'simulation' %}
+                    <svg viewBox="0 0 24 24" aria-hidden="true" style="width: 18px; height: 18px; fill: currentColor; display: block;">
+                        <polygon points="5 3 19 12 5 21 5 3"></polygon>
+                    </svg>
+                    {% elif item.icon == 'admin' %}⚙️
+                    {% endif %}
+                </span>
+                <span class="nav-label">{{ item.name }}</span>
+                <span class="nav-desc">{{ item.description }}</span>
+            </a>
+            {% endfor %}
         </div>
     </div>
     

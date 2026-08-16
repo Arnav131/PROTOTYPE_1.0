@@ -3,13 +3,16 @@
 Django settings for the Rakshak project — Phase 1 Prototype.
 
 This configuration uses:
-  - SQLite (default, no Postgres yet)
+  - PostgreSQL as the default backend for deployed app environments
+  - SQLite as an optional local override via DATABASE_URL or DB_* env vars
   - Templates from frontend/templates/
   - Static files from frontend/static/
-  - No authentication, no middleware beyond essentials
+  - Authentication middleware and staff-only controls for privileged views
 """
 import os
 from pathlib import Path
+
+import dj_database_url
 from dotenv import load_dotenv
 
 
@@ -20,13 +23,12 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 load_dotenv(BASE_DIR.parent / '.env')
 
 # SECURITY WARNING: keep the secret key used in production secret!
-# This is a prototype key — will be replaced with env-var in production.
-SECRET_KEY = 'rakshak-phase1-prototype-key-change-in-production'
+SECRET_KEY = os.environ.get('SECRET_KEY', 'rakshak-phase1-prototype-key-change-in-production')
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = os.environ.get('DEBUG', 'True') == 'True'
 
-ALLOWED_HOSTS = ['*']
+ALLOWED_HOSTS = os.environ.get('ALLOWED_HOSTS', '*').split(',')
 
 # ---------------------------------------------------------------------------
 # Application definition
@@ -46,6 +48,8 @@ INSTALLED_APPS = [
     'map_view',
     'railway',
     'ai_integration',
+    'bounty',
+    'simulation',
 ]
 
 MIDDLEWARE = [
@@ -88,16 +92,14 @@ TEMPLATES = [
 WSGI_APPLICATION = 'rakshak_project.wsgi.application'
 
 # ---------------------------------------------------------------------------
-# Database — PostgreSQL for development & production
+# Database — PostgreSQL by default, with SQLite override via DATABASE_URL
 # ---------------------------------------------------------------------------
-import dj_database_url
-
+_default_database_url = os.environ.get(
+    'DATABASE_URL',
+    'postgresql://postgres:password@localhost:5432/rakshak',
+)
 DATABASES = {
-    'default': dj_database_url.config(
-        default=os.environ.get('DATABASE_URL', 'postgresql://postgres:password@localhost:5432/rakshak'),
-        conn_max_age=600,
-        conn_health_checks=True,
-    )
+    'default': dj_database_url.config(default=_default_database_url, conn_max_age=600),
 }
 
 # ---------------------------------------------------------------------------

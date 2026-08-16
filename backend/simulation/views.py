@@ -28,9 +28,10 @@ import json
 import logging
 import uuid
 
+from django.contrib.auth.decorators import login_required
+from django.core.exceptions import PermissionDenied
 from django.http import JsonResponse
 from django.shortcuts import render
-from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_POST
 
 from ai_integration.prediction_service import PredictionService
@@ -39,12 +40,18 @@ from . import generator
 logger = logging.getLogger("rakshak.simulation")
 
 
+@login_required
 def simulation_page(request):
-    """GET /simulation/ — renders the terminal/pixel-art simulation page."""
+    """
+    GET /simulation/ — renders the terminal/pixel-art simulation page.
+    Admin-only (is_staff). Non-staff authenticated users get 403.
+    """
+    if not request.user.is_staff:
+        raise PermissionDenied("Simulation is restricted to administrators.")
     return render(request, "simulation.html")
 
 
-@csrf_exempt
+@login_required
 @require_POST
 def api_run_simulation(request):
     """
@@ -66,6 +73,12 @@ def api_run_simulation(request):
             "suggestions": ["..."],
         }
     """
+    if not request.user.is_staff:
+        return JsonResponse(
+            {"success": False, "error": "Simulation is restricted to administrators."},
+            status=403,
+        )
+
     try:
         data = json.loads(request.body)
     except (json.JSONDecodeError, ValueError) as e:

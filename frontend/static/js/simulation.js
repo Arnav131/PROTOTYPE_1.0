@@ -38,6 +38,19 @@
     startBtn.addEventListener('click', startSimulation);
     if (resetBtn) resetBtn.addEventListener('click', resetSimulation);
 
+    function getCookie(name) {
+        var cookieValue = null;
+        if (document.cookie && document.cookie !== '') {
+            document.cookie.split(';').forEach(function (cookie) {
+                var trimmed = cookie.trim();
+                if (trimmed.substring(0, name.length + 1) === (name + '=')) {
+                    cookieValue = decodeURIComponent(trimmed.substring(name.length + 1));
+                }
+            });
+        }
+        return cookieValue;
+    }
+
     function startSimulation() {
         var source = document.getElementById('sim-source').value.trim();
         var destination = document.getElementById('sim-destination').value.trim();
@@ -70,9 +83,10 @@
 
         // Call the backend — this does the REAL LLM generation + REAL
         // prediction pipeline call, not preloaded/hardcoded data.
+        var csrfToken = getCookie('csrftoken') || document.querySelector('[name=csrfmiddlewaretoken]')?.value || '';
         fetch('/api/simulation/run/', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken },
             body: JSON.stringify({ source: source, destination: destination }),
         })
             .then(function (res) { return res.json(); })
