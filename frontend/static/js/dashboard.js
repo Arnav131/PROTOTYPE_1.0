@@ -236,7 +236,7 @@ function initDashboardCharts(data) {
     window.rakshakLastChartData = data;
 
     // Destroy existing instances
-    ['vibration', 'temperature', 'gauge', 'acoustic', 'strain', 'accelerometer'].forEach(type => {
+    ['vibration', 'temperature', 'gauge', 'strain'].forEach(type => {
         if (window.rakshakChartInstances[type]) {
             window.rakshakChartInstances[type].destroy();
         }
@@ -279,9 +279,7 @@ function initDashboardCharts(data) {
     createCompactChart('vibration', 'Vibration (mm/s)', data.vibration);
     createCompactChart('temperature', 'Temperature (°C)', data.temperature);
     createCompactChart('gauge', 'Gauge Deviation (mm)', data.gauge_deviation, 'gauge_deviation');
-    createCompactChart('acoustic', 'Acoustic Emissions (dB)', data.acoustic_emissions, 'acoustic_emissions');
     createCompactChart('strain', 'Strain Gauge Load (kN)', data.strain_gauge_load, 'strain_gauge_load');
-    createCompactChart('accelerometer', 'Accelerometer Data (g)', data.accelerometer_data, 'accelerometer_data');
 }
 
 function initDashboardMap() {
@@ -412,11 +410,160 @@ window.addEventListener('themeChanged', function(e) {
 });
 
 // ====================================================================
+// APP SIDEBAR TOGGLE
+// ====================================================================
+function initSidebar() {
+    const sidebar = document.getElementById('app-sidebar');
+    if (!sidebar) return;
+    
+    // Load state from local storage
+    if (localStorage.getItem('rakshak_sidebar_collapsed') === 'true') {
+        sidebar.classList.add('collapsed');
+    }
+
+    // Use event delegation for the toggle button
+    document.addEventListener('click', (e) => {
+        const toggleBtn = e.target.closest('#sidebar-toggle');
+        if (!toggleBtn) return;
+        
+        e.preventDefault();
+        const appSidebar = document.getElementById('app-sidebar');
+        if (!appSidebar) return;
+        
+        appSidebar.classList.toggle('collapsed');
+        const isCollapsed = appSidebar.classList.contains('collapsed');
+        localStorage.setItem('rakshak_sidebar_collapsed', isCollapsed);
+        
+        // Explicitly resize charts after CSS transition (which is ~250ms)
+        setTimeout(() => {
+            window.dispatchEvent(new Event('resize'));
+            
+            // Explicit Chart.js resize
+            if (window.rakshakChartInstances) {
+                Object.values(window.rakshakChartInstances).forEach(chart => {
+                    if(chart && typeof chart.resize === 'function') chart.resize();
+                });
+            }
+            // Explicit Leaflet Map resize
+            if (window.rakshakMap && window.rakshakMap.map) {
+                window.rakshakMap.map.invalidateSize();
+            }
+        }, 300); 
+    });
+}
+
+// ====================================================================
+// CHART EXPANSION MODAL
+// ====================================================================
+let currentModalChart = null;
+
+function initChartModal() {
+    const modal = document.getElementById('chart-modal');
+    if (!modal) return;
+    
+    function closeModal() {
+        if (modal) modal.style.display = 'none';
+        if (currentModalChart) {
+            currentModalChart.destroy();
+            currentModalChart = null;
+        }
+    }
+    
+    // Event delegation for opening and closing modal
+    document.addEventListener('click', (e) => {
+        // Close modal if clicking close button or backdrop
+        if (e.target.closest('#btn-close-modal') || e.target === modal) {
+            closeModal();
+            return;
+        }
+        
+        // Expand chart
+        const btn = e.target.closest('.btn-expand-chart');
+        if (!btn) return;
+        
+        e.preventDefault();
+        
+        const chartId = btn.getAttribute('data-chart-id');
+        const data = window.rakshakLastChartData;
+        if (!data || !window.rakshakChartInstances || !window.rakshakChartInstances[chartId]) return;
+        
+        const titleEl = document.getElementById('modal-chart-title');
+        
+        // Map chartId to data key and labels
+        let dataKey = chartId;
+        let label = "";
+        let statsKey = chartId;
+        
+        if (chartId === 'vibration') { label = 'Vibration Amplitude'; }
+        else if (chartId === 'temperature') { label = 'Rail Temperature'; }
+        else if (chartId === 'gauge') { label = 'Gauge Deviation'; dataKey = 'gauge_deviation'; statsKey = 'gauge_deviation'; }
+        else if (chartId === 'strain') { label = 'Strain Gauge Load'; dataKey = 'strain_gauge_load'; statsKey = 'strain_gauge_load'; }
+        
+        if (titleEl) titleEl.textContent = label;
+        modal.style.display = 'flex';
+        
+        // Render temporary large chart
+        const canvas = document.getElementById('modal-chart-canvas');
+        if (!canvas) return;
+        const ctx = canvas.getContext('2d');
+        const colors = getChartColorConfig(chartId, data[dataKey]);
+        
+        // ALWAYS destroy previous instance if it exists to avoid "Canvas already in use"
+        if (currentModalChart) {
+            currentModalChart.destroy();
+        }
+        
+        currentModalChart = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: data.timestamps,
+                datasets: [{
+                    label: label,
+                    data: data[dataKey],
+                    borderColor: colors.main,
+                    backgroundColor: createGradient(ctx, colors.bg, 'rgba(0,0,0,0)'),
+                    borderWidth: 2,
+                    pointBackgroundColor: colors.main,
+                    pointBorderColor: '#171A21',
+                    pointBorderWidth: 1,
+                    pointRadius: 3,
+                    pointHoverRadius: 6,
+                    fill: true,
+                    tension: 0.4,
+                }],
+            },
+            options: getChartDefaults(),
+        });
+        
+        // Adjust options for the large view
+        currentModalChart.options.maintainAspectRatio = false;
+        if (currentModalChart.options.plugins && currentModalChart.options.plugins.legend) {
+            currentModalChart.options.plugins.legend.display = true;
+        }
+        currentModalChart.update();
+        
+        // Update stats
+        if (data.sensor_stats && data.sensor_stats[statsKey]) {
+            const maxEl = document.getElementById('modal-stat-max');
+            const minEl = document.getElementById('modal-stat-min');
+            if (maxEl) maxEl.textContent = data.sensor_stats[statsKey].max.toFixed(2);
+            if (minEl) minEl.textContent = data.sensor_stats[statsKey].min.toFixed(2);
+        }
+    });
+    
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape' && modal.style.display !== 'none') closeModal();
+    });
+}
+
+// ====================================================================
 // INITIALIZE ON DOM READY
 // ====================================================================
 document.addEventListener('DOMContentLoaded', function () {
     initLiveClock();
     animateCounters();
+    initSidebar();
+    initChartModal();
     
     // Dashboard charts
     var trendsEl = document.getElementById('sensor-trends-data');

@@ -37,9 +37,10 @@
     </div>
 </div>
 
-<section class="operations-grid">
-    <!-- Left: Live Network Status with embedded Leaflet map -->
-    <div class="grid-col-map">
+<div class="dashboard-main-grid">
+    <!-- Left Column: Map + Charts -->
+    <div class="dashboard-left-col">
+        <!-- Live Network Status with embedded Leaflet map -->
         <div class="panel map-panel">
             <div class="panel-header">
                 <h2 class="panel-title">Live Network Status</h2>
@@ -50,11 +51,94 @@
                 </div>
             </div>
         </div>
+        
+        <!-- Sensor Telemetry (4 charts, 2x2) -->
+        <section class="telemetry-section">
+            <h2 class="section-title">Sensor Telemetry — 24 HOUR TREND</h2>
+            <div class="telemetry-grid telemetry-grid--compact">
+                <div class="telemetry-card">
+                    <div class="telemetry-card-header">
+                        <div>
+                            <span class="telemetry-card-title">Vibration Amplitude</span>
+                            <span class="telemetry-card-unit">(mm/s)</span>
+                        </div>
+                        <button class="btn-expand-chart" data-chart-id="vibration" aria-label="Expand chart">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 3 21 3 21 9"></polyline><polyline points="9 21 3 21 3 15"></polyline><line x1="21" y1="3" x2="14" y2="10"></line><line x1="3" y1="21" x2="10" y2="14"></line></svg>
+                        </button>
+                    </div>
+                    <div class="telemetry-chart-wrap">
+                        <canvas id="chart-vibration"></canvas>
+                    </div>
+                    <div class="telemetry-stats">
+                        <span>Max: <b id="stat-vibration-max">--</b></span>
+                        <span>Min: <b id="stat-vibration-min">--</b></span>
+                    </div>
+                </div>
+                
+                <div class="telemetry-card">
+                    <div class="telemetry-card-header">
+                        <div>
+                            <span class="telemetry-card-title">Rail Temperature</span>
+                            <span class="telemetry-card-unit">(°C)</span>
+                        </div>
+                        <button class="btn-expand-chart" data-chart-id="temperature" aria-label="Expand chart">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 3 21 3 21 9"></polyline><polyline points="9 21 3 21 3 15"></polyline><line x1="21" y1="3" x2="14" y2="10"></line><line x1="3" y1="21" x2="10" y2="14"></line></svg>
+                        </button>
+                    </div>
+                    <div class="telemetry-chart-wrap">
+                        <canvas id="chart-temperature"></canvas>
+                    </div>
+                    <div class="telemetry-stats">
+                        <span>Max: <b id="stat-temperature-max">--</b></span>
+                        <span>Min: <b id="stat-temperature-min">--</b></span>
+                    </div>
+                </div>
+                
+                <div class="telemetry-card">
+                    <div class="telemetry-card-header">
+                        <div>
+                            <span class="telemetry-card-title">Gauge Deviation</span>
+                            <span class="telemetry-card-unit">(mm)</span>
+                        </div>
+                        <button class="btn-expand-chart" data-chart-id="gauge" aria-label="Expand chart">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 3 21 3 21 9"></polyline><polyline points="9 21 3 21 3 15"></polyline><line x1="21" y1="3" x2="14" y2="10"></line><line x1="3" y1="21" x2="10" y2="14"></line></svg>
+                        </button>
+                    </div>
+                    <div class="telemetry-chart-wrap">
+                        <canvas id="chart-gauge"></canvas>
+                    </div>
+                    <div class="telemetry-stats">
+                        <span>Max: <b id="stat-gauge-max">--</b></span>
+                        <span>Min: <b id="stat-gauge-min">--</b></span>
+                    </div>
+                </div>
+                
+                <div class="telemetry-card">
+                    <div class="telemetry-card-header">
+                        <div>
+                            <span class="telemetry-card-title">Strain Gauge Load</span>
+                            <span class="telemetry-card-unit">(kN)</span>
+                        </div>
+                        <button class="btn-expand-chart" data-chart-id="strain" aria-label="Expand chart">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 3 21 3 21 9"></polyline><polyline points="9 21 3 21 3 15"></polyline><line x1="21" y1="3" x2="14" y2="10"></line><line x1="3" y1="21" x2="10" y2="14"></line></svg>
+                        </button>
+                    </div>
+                    <div class="telemetry-chart-wrap">
+                        <canvas id="chart-strain"></canvas>
+                    </div>
+                    <div class="telemetry-stats">
+                        <span>Max: <b id="stat-strain-max">--</b></span>
+                        <span>Min: <b id="stat-strain-min">--</b></span>
+                    </div>
+                </div>
+            </div>
+        </section>
     </div>
     
-    <!-- Right: Critical Alerts -->
-    <div class="grid-col-alerts">
-        <div class="panel">
+    <!-- Right Column: Critical Alerts + Recent Activity -->
+    <div class="dashboard-right-col">
+        <!-- Critical Alerts -->
+        <div class="panel alerts-panel">
             <div class="panel-header">
                 <h2 class="panel-title">Critical Alerts</h2>
                 <button class="panel-menu-btn" title="More options">&#8942;</button>
@@ -77,133 +161,45 @@
                 {% endfor %}
             </div>
         </div>
-    </div>
-</section>
-
-<section class="recent-activity-section">
-    <div class="panel">
-        <div class="panel-header">
-            <h2 class="panel-title">Recent Activity</h2>
-        </div>
-        <div class="panel-body activity-panel-body">
-            <!-- Sensor Logs -->
-            <div class="activity-section">
-                <h3 class="activity-section-title">SENSOR LOGS (Last 100)</h3>
-                <div class="sensor-log-list">
-                    {% for reading in recent_readings %}
-                    <div class="log-entry">
-                        <span class="log-time">{{ reading.time }}</span>
-                        <span class="log-detail">[{{ reading.track_id }}] {{ reading.sensor }}: {{ reading.value }}</span>
+        
+        <!-- Recent Activity -->
+        <section class="recent-activity-section">
+            <div class="panel activity-panel">
+                <div class="panel-header">
+                    <h2 class="panel-title">Recent Activity</h2>
+                </div>
+                <div class="panel-body activity-panel-body">
+                    <!-- Sensor Logs -->
+                    <div class="activity-section">
+                        <h3 class="activity-section-title">SENSOR LOGS (Last 100)</h3>
+                        <div class="sensor-log-list">
+                            {% for reading in recent_readings %}
+                            <div class="log-entry">
+                                <span class="log-time">{{ reading.time }}</span>
+                                <span class="log-detail">[{{ reading.track_id }}] {{ reading.sensor }}: {{ reading.value }}</span>
+                            </div>
+                            {% endfor %}
+                        </div>
                     </div>
-                    {% endfor %}
+                    
+                    <!-- Operator Activity -->
+                    <div class="activity-section">
+                        <h3 class="activity-section-title">OPERATOR ACTIVITY</h3>
+                        <div class="operator-log-list">
+                            {% for activity in operator_activity %}
+                            <div class="op-log-entry">
+                                <span class="op-log-time">{{ activity.time }}</span>
+                                <span class="op-log-user">{{ activity.user }}</span>
+                                <span class="op-log-action">{{ activity.action }}</span>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    </div>
                 </div>
             </div>
-            
-            <!-- Operator Activity -->
-            <div class="activity-section">
-                <h3 class="activity-section-title">OPERATOR ACTIVITY</h3>
-                <div class="operator-log-list">
-                    {% for activity in operator_activity %}
-                    <div class="op-log-entry">
-                        <span class="op-log-time">{{ activity.time }}</span>
-                        <span class="op-log-user">{{ activity.user }}</span>
-                        <span class="op-log-action">{{ activity.action }}</span>
-                    </div>
-                    {% endfor %}
-                </div>
-            </div>
-        </div>
+        </section>
     </div>
-</section>
-
-<section class="telemetry-section">
-    <h2 class="section-title">Sensor Telemetry — 24 HOUR TREND</h2>
-    <div class="telemetry-grid">
-        <div class="telemetry-card">
-            <div class="telemetry-card-header">
-                <span class="telemetry-card-title">Vibration Amplitude</span>
-                <span class="telemetry-card-unit">(mm/s)</span>
-            </div>
-            <div class="telemetry-chart-wrap">
-                <canvas id="chart-vibration"></canvas>
-            </div>
-            <div class="telemetry-stats">
-                <span>Max: <b id="stat-vibration-max">--</b></span>
-                <span>Min: <b id="stat-vibration-min">--</b></span>
-            </div>
-        </div>
-        
-        <div class="telemetry-card">
-            <div class="telemetry-card-header">
-                <span class="telemetry-card-title">Rail Temperature</span>
-                <span class="telemetry-card-unit">(°C)</span>
-            </div>
-            <div class="telemetry-chart-wrap">
-                <canvas id="chart-temperature"></canvas>
-            </div>
-            <div class="telemetry-stats">
-                <span>Max: <b id="stat-temperature-max">--</b></span>
-                <span>Min: <b id="stat-temperature-min">--</b></span>
-            </div>
-        </div>
-        
-        <div class="telemetry-card">
-            <div class="telemetry-card-header">
-                <span class="telemetry-card-title">Gauge Deviation</span>
-                <span class="telemetry-card-unit">(mm)</span>
-            </div>
-            <div class="telemetry-chart-wrap">
-                <canvas id="chart-gauge"></canvas>
-            </div>
-            <div class="telemetry-stats">
-                <span>Max: <b id="stat-gauge-max">--</b></span>
-                <span>Min: <b id="stat-gauge-min">--</b></span>
-            </div>
-        </div>
-        
-        <div class="telemetry-card">
-            <div class="telemetry-card-header">
-                <span class="telemetry-card-title">Acoustic Emissions</span>
-                <span class="telemetry-card-unit">(dB)</span>
-            </div>
-            <div class="telemetry-chart-wrap">
-                <canvas id="chart-acoustic"></canvas>
-            </div>
-            <div class="telemetry-stats">
-                <span>Max: <b id="stat-acoustic-max">--</b></span>
-                <span>Min: <b id="stat-acoustic-min">--</b></span>
-            </div>
-        </div>
-        
-        <div class="telemetry-card">
-            <div class="telemetry-card-header">
-                <span class="telemetry-card-title">Strain Gauge Load</span>
-                <span class="telemetry-card-unit">(kN)</span>
-            </div>
-            <div class="telemetry-chart-wrap">
-                <canvas id="chart-strain"></canvas>
-            </div>
-            <div class="telemetry-stats">
-                <span>Max: <b id="stat-strain-max">--</b></span>
-                <span>Min: <b id="stat-strain-min">--</b></span>
-            </div>
-        </div>
-        
-        <div class="telemetry-card">
-            <div class="telemetry-card-header">
-                <span class="telemetry-card-title">Accelerometer Data</span>
-                <span class="telemetry-card-unit">(g)</span>
-            </div>
-            <div class="telemetry-chart-wrap">
-                <canvas id="chart-accelerometer"></canvas>
-            </div>
-            <div class="telemetry-stats">
-                <span>Max: <b id="stat-accelerometer-max">--</b></span>
-                <span>Min: <b id="stat-accelerometer-min">--</b></span>
-            </div>
-        </div>
-    </div>
-</section>
+</div>
 
 <section class="track-health-section">
     <h2 class="section-title">Track Health & Maintenance</h2>
@@ -247,6 +243,27 @@
         </table>
     </div>
 </section>
+
+<!-- Chart Expansion Modal -->
+<div class="chart-modal-backdrop" id="chart-modal" style="display: none;">
+    <div class="chart-modal-container">
+        <div class="chart-modal-header">
+            <h2 class="chart-modal-title" id="modal-chart-title">Chart Title</h2>
+            <button class="btn-close-modal" id="btn-close-modal" aria-label="Close chart">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+            </button>
+        </div>
+        <div class="chart-modal-body">
+            <div class="chart-modal-canvas-wrap">
+                <canvas id="modal-chart-canvas"></canvas>
+            </div>
+            <div class="chart-modal-stats">
+                <span>Max: <b id="modal-stat-max">--</b></span>
+                <span>Min: <b id="modal-stat-min">--</b></span>
+            </div>
+        </div>
+    </div>
+</div>
 
 {{ sensor_trends_json|json_script:"sensor-trends-data" }}
 {% endblock %}
