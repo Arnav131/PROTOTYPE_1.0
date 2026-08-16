@@ -92,7 +92,11 @@
                     {% elif item.icon == 'tickets' %}🎫
                     {% elif item.icon == 'map' %}🗺️
                     {% elif item.icon == 'agent_tasks' %}🤖
-                    {% elif item.icon == 'simulation' %}🧪
+                    {% elif item.icon == 'simulation' %}
+                    <svg viewBox="0 0 24 24" aria-hidden="true" style="width: 18px; height: 18px; fill: currentColor; display: block;">
+                        <polygon points="5 3 19 12 5 21 5 3"></polygon>
+                    </svg>
+                    {% elif item.icon == 'admin' %}⚙️
                     {% endif %}
                 </span>
                 <span class="nav-label">{{ item.name }}</span>

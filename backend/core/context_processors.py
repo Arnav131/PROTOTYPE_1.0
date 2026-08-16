@@ -10,13 +10,13 @@ def navigation(request):
         {
             'name': 'Alerts',
             'url': '/alerts/',
-            'icon': 'alerts',  # Was 'alert' before, make sure this matches your icon names
+            'icon': 'alerts',
             'description': 'Active Alerts',
         },
         {
             'name': 'Tickets',
             'url': '/tickets/',
-            'icon': 'tickets',  # Was 'ticket' before
+            'icon': 'tickets',
             'description': 'Maintenance Tickets',
         },
         {
@@ -25,20 +25,17 @@ def navigation(request):
             'icon': 'map',
             'description': 'Railway Network',
         },
-        {
-            'name': 'Live Simulation',
+    ]
+
+    # Simulation — admin/staff only. Same gate used for the Admin link below.
+    if request.user.is_authenticated and request.user.is_staff:
+        nav_items.append({
+            'name': 'Simulation',
             'url': '/simulation/',
             'icon': 'simulation',
-            'description': 'Generate & Test a Scenario',
-        },
-        {
-            'name': 'Agent Tasks',
-            'url': '/bounty/',
-            'icon': 'agent_tasks',
-            'description': 'Task Checklist & Review',
-        },
-    ]
-    
+            'description': 'Live Journey Simulation',
+        })
+
     # Add admin link for staff users
     if request.user.is_authenticated and request.user.is_staff:
         nav_items.append({
@@ -47,15 +44,15 @@ def navigation(request):
             'icon': 'admin',
             'description': 'Control & Audit',
         })
-    
+
     # Detect active page
     current_path = request.path
     for item in nav_items:
         item['active'] = (
-            current_path == item['url'] or 
+            current_path == item['url'] or
             (item['url'] == '/admin/' and current_path.startswith('/admin/'))
         )
-    
+
     return {
         'nav_items': nav_items,
         'is_controller': request.user.is_authenticated and request.user.is_staff

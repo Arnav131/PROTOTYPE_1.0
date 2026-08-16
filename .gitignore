@@ -45,3 +45,7 @@ raw_overpass_railway.json
 *.pmtiles
 *.shp
 *.zip
+
+# Prevent accidental binary/scratch pipeline artifacts in repo root
+/temp_pipeline.py
+**/temp_pipeline.py

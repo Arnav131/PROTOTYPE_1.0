@@ -3,13 +3,16 @@
 Django settings for the Rakshak project — Phase 1 Prototype.
 
 This configuration uses:
-  - SQLite (default, no Postgres yet)
+  - PostgreSQL as the default backend for deployed app environments
+  - SQLite as an optional local override via DATABASE_URL or DB_* env vars
   - Templates from frontend/templates/
   - Static files from frontend/static/
-  - No authentication, no middleware beyond essentials
+  - Authentication middleware and staff-only controls for privileged views
 """
 import os
 from pathlib import Path
+
+import dj_database_url
 from dotenv import load_dotenv
 
 
@@ -20,13 +23,12 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 load_dotenv(BASE_DIR.parent / '.env')
 
 # SECURITY WARNING: keep the secret key used in production secret!
-# This is a prototype key — will be replaced with env-var in production.
-SECRET_KEY = 'rakshak-phase1-prototype-key-change-in-production'
+SECRET_KEY = os.environ.get('SECRET_KEY', 'rakshak-phase1-prototype-key-change-in-production')
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = os.environ.get('DEBUG', 'True') == 'True'
 
-ALLOWED_HOSTS = ['*']
+ALLOWED_HOSTS = os.environ.get('ALLOWED_HOSTS', '*').split(',')
 
 # ---------------------------------------------------------------------------
 # Application definition
@@ -45,6 +47,7 @@ INSTALLED_APPS = [
     'tickets',
     'map_view',
     'railway',
+    'ai_integration',
     'bounty',
     'simulation',
 ]
@@ -89,32 +92,15 @@ TEMPLATES = [
 WSGI_APPLICATION = 'rakshak_project.wsgi.application'
 
 # ---------------------------------------------------------------------------
-# Database — PostgreSQL for development
+# Database — PostgreSQL by default, with SQLite override via DATABASE_URL
 # ---------------------------------------------------------------------------
-_db_env_keys = ('DB_ENGINE', 'DB_NAME', 'DB_USER', 'DB_PASSWORD', 'DB_HOST', 'DB_PORT')
-_use_postgres = (
-    os.environ.get('DB_ENGINE', '').lower() in {'postgres', 'postgresql'}
-    or any(os.environ.get(key) for key in _db_env_keys[1:])
+_default_database_url = os.environ.get(
+    'DATABASE_URL',
+    'postgresql://postgres:password@localhost:5432/rakshak',
 )
-
-if _use_postgres:
-    DATABASES = {
-        'default': {
-            'ENGINE': 'django.db.backends.postgresql',
-            'NAME': os.environ.get('DB_NAME', 'rakshak'),
-            'USER': os.environ.get('DB_USER', 'postgres'),
-            'PASSWORD': os.environ.get('DB_PASSWORD', ''),
-            'HOST': os.environ.get('DB_HOST', 'localhost'),
-            'PORT': os.environ.get('DB_PORT', '5432'),
-        }
-    }
-else:
-    DATABASES = {
-        'default': {
-            'ENGINE': 'django.db.backends.sqlite3',
-            'NAME': BASE_DIR / 'db.sqlite3',
-        }
-    }
+DATABASES = {
+    'default': dj_database_url.config(default=_default_database_url, conn_max_age=600),
+}
 
 # ---------------------------------------------------------------------------
 # Static files — served from frontend/static/

@@ -1,208 +1,238 @@
-PS C:\Users\devil\Downloads\PROTOTYPE_1.0> tree /F
 Folder PATH listing for volume Windows
 Volume serial number is 00000007 A81E:4E21
-C:.
+D:.
+│   .env
+│   .env.example
 │   .gitignore
 │   AI_ENGINE_GUIDE.md
+│   bounty.md
 │   check_all_py.py
+│   Codebase.md
+│   improvements.md
+│   PROGRESS_REPORT.md
+│   PROJECT_REPORT.md
 │   README.md
 │   requirements.txt
-│   
+│   rundatabase.md
+│   test_progress.md
+│   Tree.md
+│
 ├───ai_engin
-│   │   agents_README.md
-│   │   requirements_colab.txt
-│   │   
 │   ├───colab_training
-│   │   │   config.py
-│   │   │   train_all_models.ipynb
-│   │   │   
 │   │   ├───data
-│   │   │       dataset.py
-│   │   │       data_loader.py
-│   │   │       feature_engineer.py
-│   │   │       preprocessing.py
-│   │   │       __init__.py
-│   │   │       
+│   │   │   ├───__init__.py
+│   │   │   ├───data_loader.py
+│   │   │   ├───dataset.py
+│   │   │   ├───feature_engineer.py
+│   │   │   └───preprocessing.py
 │   │   ├───evaluation
-│   │   │       evaluate_all.py
-│   │   │       visualization.py
-│   │   │       __init__.py
-│   │   │       
+│   │   │   ├───__init__.py
+│   │   │   ├───evaluate_all.py
+│   │   │   └───visualization.py
 │   │   ├───export
-│   │   │       export_models.py
-│   │   │       __init__.py
-│   │   │       
+│   │   │   ├───__init__.py
+│   │   │   └───export_models.py
 │   │   ├───models
-│   │   │       failure_predictor.py
-│   │   │       fault_classifier.py
-│   │   │       isolation_forest.py
-│   │   │       meta_classifier.py
-│   │   │       vae_anomaly.py
-│   │   │       __init__.py
-│   │   │       
-│   │   └───training
-│   │           losses.py
-│   │           metrics.py
-│   │           train_classifier.py
-│   │           train_ensemble.py
-│   │           train_failure.py
-│   │           train_vae.py
-│   │           __init__.py
-│   │           
+│   │   │   ├───__init__.py
+│   │   │   ├───failure_predictor.py
+│   │   │   ├───fault_classifier.py
+│   │   │   ├───isolation_forest.py
+│   │   │   ├───meta_classifier.py
+│   │   │   └───vae_anomaly.py
+│   │   ├───training
+│   │   │   ├───__init__.py
+│   │   │   ├───losses.py
+│   │   │   ├───metrics.py
+│   │   │   ├───train_classifier.py
+│   │   │   ├───train_ensemble.py
+│   │   │   ├───train_failure.py
+│   │   │   └───train_vae.py
+│   │   ├───config.py
+│   │   └───train_all_models.ipynb
 │   ├───inference
-│   │       anomaly_detector.py
-│   │       failure_predictor.py
-│   │       fault_classifier.py
-│   │       model_registry.py
-│   │       pipeline.py
-│   │       utils.py
-│   │       __init__.py
-│   │       
-│   └───trained_models
-│           .gitkeep
-│           
+│   │   ├───__init__.py
+│   │   ├───anomaly_detector.py
+│   │   ├───failure_predictor.py
+│   │   ├───fault_classifier.py
+│   │   ├───model_registry.py
+│   │   ├───pipeline.py
+│   │   ├───utils.py
+│   │   └───__pycache__
+│   ├───trained_models
+│   │   └───.gitkeep
+│   ├───agents_README.md
+│   └───requirements_colab.txt
+│
 ├───backend
-│   │   check_templates.py
-│   │   manage.py
-│   │   validate_api.py
-│   │   
 │   ├───agents
-│   │   │   __init__.py
-│   │   │   
+│   │   ├───__init__.py
 │   │   ├───anomaly
-│   │   │       anomaly_detection_agent.py
-│   │   │       
+│   │   │   └───anomaly_detection_agent.py
 │   │   ├───dispatch
-│   │   │       maintenance_dispatch_agent.py
-│   │   │       
+│   │   │   └───maintenance_dispatch_agent.py
 │   │   ├───explainability
-│   │   │       explainability_agent.py
-│   │   │       
+│   │   │   └───explainability_agent.py
 │   │   ├───ingestion
-│   │   │       sensor_ingestion_agent.py
-│   │   │       
+│   │   │   └───sensor_ingestion_agent.py
 │   │   ├───network_health
-│   │   │       network_health_agent.py
-│   │   │       
+│   │   │   └───network_health_agent.py
 │   │   ├───prediction
-│   │   │       failure_prediction_agent.py
-│   │   │       
+│   │   │   └───failure_prediction_agent.py
 │   │   ├───root_cause
-│   │   │       root_cause_agent.py
-│   │   │       
+│   │   │   └───root_cause_agent.py
 │   │   ├───shared
-│   │   │       base_agent.py
-│   │   │       events.py
-│   │   │       __init__.py
-│   │   │       
+│   │   │   ├───__init__.py
+│   │   │   ├───base_agent.py
+│   │   │   └───events.py
 │   │   └───speed_restriction
-│   │           speed_restriction_agent.py
-│   │           
+│   │       └───speed_restriction_agent.py
+│   ├───ai_integration
+│   │   ├───__init__.py
+│   │   ├───alert_service.py
+│   │   ├───api_urls.py
+│   │   ├───api_views.py
+│   │   ├───apps.py
+│   │   ├───incident_orchestrator.py
+│   │   ├───journey_service.py
+│   │   ├───journey_urls.py
+│   │   ├───journey_views.py
+│   │   ├───local_provider.py
+│   │   ├───mock_sensor_generator.py
+│   │   ├───prediction_service.py
+│   │   ├───providers.py
+│   │   ├───registry.py
+│   │   ├───sensor_source.py
+│   │   ├───serializers.py
+│   │   ├───tests
+│   │   │   ├───__init__.py
+│   │   │   ├───test_prediction_service.py
+│   │   │   └───test_providers.py
+│   │   └───ticket_service.py
+│   ├───ai_models
+│   │   ├───model_config.json
+│   │   └───simple_pipeline.py
 │   ├───alerts
-│   │       urls.py
-│   │       views.py
-│   │       __init__.py
-│   │       
+│   │   ├───__init__.py
+│   │   ├───urls.py
+│   │   └───views.py
+│   ├───bounty
+│   │   ├───__init__.py
+│   │   ├───apps.py
+│   │   ├───urls.py
+│   │   └───views.py
+│   ├───check_templates.py
 │   ├───core
-│   │       context_processors.py
-│   │       __init__.py
-│   │       
+│   │   ├───__init__.py
+│   │   ├───context_processors.py
+│   │   └───utils.py
+│   ├───db.sqlite3
+│   ├───manage.py
 │   ├───map_view
-│   │   │   api_urls.py
-│   │   │   api_views.py
-│   │   │   services.py
-│   │   │   urls.py
-│   │   │   views.py
-│   │   │   __init__.py
-│   │   │   
-│   │   └───route_geometry
-│   │           india_railways.geojson
-│   │           
+│   │   ├───__init__.py
+│   │   ├───api_urls.py
+│   │   ├───api_views.py
+│   │   ├───route_geometry
+│   │   │   └───india_railways.geojson
+│   │   ├───services.py
+│   │   ├───urls.py
+│   │   └───views.py
 │   ├───railway
-│   │   │   admin.py
-│   │   │   apps.py
-│   │   │   models.py
-│   │   │   tests.py
-│   │   │   views.py
-│   │   │   __init__.py
-│   │   │   
+│   │   ├───__init__.py
+│   │   ├───admin.py
+│   │   ├───apps.py
+│   │   ├───build_complete_india_osm_network.py
+│   │   ├───build_railway_data.py
+│   │   ├───download_full_india_osm_railways.py
+│   │   ├───extract_osm_test.py
+│   │   ├───fetch_real_india_railways.py
+│   │   ├───generate_dense_india_railways.py
+│   │   ├───generate_osm_railway_dataset.py
 │   │   ├───management
-│   │   │   │   __init__.py
-│   │   │   │   
 │   │   │   └───commands
-│   │   │           seed_demo_data.py
-│   │   │           seed_master_data.py
-│   │   │           seed_routes.py
-│   │   │           seed_sensors.py
-│   │   │           __init__.py
-│   │   │           
-│   │   └───migrations
-│   │           0001_initial.py
-│   │           0002_tracksection_uniq_track_route_direction.py
-│   │           0003_tracksection_geometry.py
-│   │           __init__.py
-│   │           
+│   │   │       ├───__init__.py
+│   │   │       ├───seed_demo_data.py
+│   │   │       ├───seed_master_data.py
+│   │   │       ├───seed_routes.py
+│   │   │       └───seed_sensors.py
+│   │   ├───migrations
+│   │   │   ├───0001_initial.py
+│   │   │   ├───0002_tracksection_uniq_track_route_direction.py
+│   │   │   ├───0003_tracksection_geometry.py
+│   │   │   └───__init__.py
+│   │   ├───middleware.py
+│   │   ├───models.py
+│   │   ├───signals.py
+│   │   ├───test_grid_query.py
+│   │   ├───tests.py
+│   │   ├───verify_final_map.py
+│   │   └───views.py
 │   ├───rakshak_project
-│   │       asgi.py
-│   │       settings.py
-│   │       urls.py
-│   │       wsgi.py
-│   │       __init__.py
-│   │       
+│   │   ├───__init__.py
+│   │   ├───asgi.py
+│   │   ├───settings.py
+│   │   ├───urls.py
+│   │   └───wsgi.py
 │   ├───sensors
-│   │       urls.py
-│   │       views.py
-│   │       __init__.py
-│   │       
-│   └───tickets
-│           urls.py
-│           views.py
-│           __init__.py
-│           
+│   │   ├───__init__.py
+│   │   ├───api_urls.py
+│   │   ├───api_views.py
+│   │   ├───urls.py
+│   │   └───views.py
+│   ├───simulation
+│   │   ├───__init__.py
+│   │   ├───api_urls.py
+│   │   ├───generator.py
+│   │   ├───tests.py
+│   │   ├───urls.py
+│   │   └───views.py
+│   ├───test_queries.py
+│   ├───validate_api.py
+│   └───verify_endpoints.py
+│
 ├───demo_assets
-│       demo_scenario.md
-│       
+│   └───demo_scenario.md
+│
 ├───docs
 │   ├───architecture
-│   │       system_overview.md
-│   │       
+│   │   └───system_overview.md
 │   └───reports
-│           PHASE_REPORT.md
-│           
+│       └───PHASE_REPORT.md
+│
 ├───frontend
 │   ├───static
 │   │   ├───css
-│   │   │       dashboard.css
-│   │   │       
+│   │   │   ├───dashboard.css
+│   │   │   └───simulation.css
 │   │   ├───images
-│   │   │       .gitkeep
-│   │   │       
+│   │   │   └───.gitkeep
 │   │   └───js
-│   │           dashboard.js
-│   │           map.js
-│   │           train_simulation.js
-│   │           
+│   │       ├───dashboard.js
+│   │       ├───map.js
+│   │       ├───simulation.js
+│   │       └───train_simulation.js
 │   └───templates
-│           alerts.html
-│           base.html
-│           dashboard.html
-│           map.html
-│           tickets.html
-│           
+│       ├───base.html
+│       ├───dashboard.html
+│       ├───map.html
+│       ├───simulation.html
+│       └───tickets.html
+│
 ├───notebooks
-│       colab_training_tutorial.md
-│       requirements-colab.txt
-│       section_0.py
-│       section_1.py
-│       section_2.py
-│       section_3.py
-│       section_4.py
-│       section_5.py
-│       section_6.py
-│       section_7.py
-│       SHARED_CONTRACT.md
-│       train_colab.ipynb
-│       train_colab.py
-│       
-└───presentation
-        .gitkeep
+│   ├───colab_training_tutorial.md
+│   ├───requirements-colab.txt
+│   ├───section_0.py
+│   ├───section_1.py
+│   ├───section_2.py
+│   ├───section_3.py
+│   ├───section_4.py
+│   ├───section_5.py
+│   ├───section_6.py
+│   ├───section_7.py
+│   ├───SHARED_CONTRACT.md
+│   ├───train_colab.ipynb
+│   └───train_colab.py
+│
+├───presentation
+│   └───.gitkeep
+│
+└───venv

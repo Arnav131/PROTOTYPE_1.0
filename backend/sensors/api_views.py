@@ -16,10 +16,9 @@ from decimal import Decimal
 
 from django.http import JsonResponse
 from django.utils import timezone
-from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_GET, require_POST
-from django.contrib.auth.decorators import login_required  # ← Add if needed
-from django.views.decorators.cache import never_cache      # ← Add for sensitive endpoints
+from django.contrib.auth.decorators import login_required
+from django.views.decorators.cache import never_cache
 
 from ai_integration.prediction_service import PredictionService
 logger = logging.getLogger("rakshak.api.predict")
@@ -130,7 +129,7 @@ def _maybe_create_alert(prediction, track_section_id=None, sensor_id=None):
         return None
 
 
-@csrf_exempt
+@login_required
 @require_POST
 @never_cache  # ← Don't cache predictions
 def api_predict(request):
@@ -158,6 +157,12 @@ def api_predict(request):
             "timestamp": "2024-01-01T00:00:00Z"
         }
     """
+    if not request.user.is_staff:
+        return JsonResponse(
+            {"success": False, "error": "Prediction API is restricted to administrators."},
+            status=403,
+        )
+
     # Parse JSON body
     try:
         data = json.loads(request.body)
@@ -230,7 +235,7 @@ def api_predict_health(request):
     return JsonResponse(health_data)
 
 
-@csrf_exempt
+@login_required
 @require_POST
 @never_cache  # ← Don't cache batch predictions
 def api_predict_batch(request):
@@ -256,6 +261,12 @@ def api_predict_batch(request):
             "timestamp": "2024-01-01T00:00:00Z"
         }
     """
+    if not request.user.is_staff:
+        return JsonResponse(
+            {"success": False, "error": "Prediction API is restricted to administrators."},
+            status=403,
+        )
+
     try:
         data = json.loads(request.body)
     except (json.JSONDecodeError, ValueError) as e:
