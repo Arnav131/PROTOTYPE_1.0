@@ -20,7 +20,7 @@ The system is decoupled into logical tiers residing within a single Django appli
 
 ### 2.1 Backend Framework (Django)
 *   **Framework:** Django 4.2+ (Python 3.x).
-*   **Database:** SQLite (Prototype phase) with PostgreSQL readiness (via ORM constraints like `PROTECT` and indexing).
+*   **Database:** PostgreSQL.
 *   **API Layer:** Pure Django `JsonResponse` and `@csrf_exempt` decorators. Django Rest Framework (DRF) is **not** used to minimize dependencies.
 *   **Static/Templates:** Standard Django template rendering with Chart.js and Leaflet.js.
 
@@ -83,13 +83,12 @@ Powers the live operations dashboard using deterministic, pseudo-random data gen
 1.  **Monolithic AI Integration:** The PyTorch models are loaded directly into the Django application memory (via lazy singleton in `ai_models/__init__.py`). This avoids the complexity of deploying a separate inference server (like FastAPI/TorchServe) for Phase 1, reducing latency and infrastructure overhead.
 2.  **Graceful ML Fallback:** If the `.pkl` files are missing or PyTorch fails to load, `SimpleRakshakInferencePipeline` gracefully degrades to the `RuleLayer`, ensuring the platform remains functional.
 3.  **No Authentication:** The prototype lacks authentication middleware. APIs like `/api/predict/` are marked `@csrf_exempt` and are open. This is a critical security debt to address in Phase 2.
-4.  **Database:** Currently using SQLite. The schema uses `DecimalField` extensively and avoids DB-specific JSON operations to ensure a smooth migration to PostgreSQL.
+4.  **Database:** Currently using PostgreSQL natively.
 
 ---
 
 ## 6. Next Steps for Phase 2
 
-1.  **PostgreSQL Migration:** Migrate from SQLite to PostgreSQL to handle the high volume of the `SensorReading` table and utilize native PostGIS features for the map.
-2.  **Authentication & Authorization:** Implement JWT or Session auth for the API and dashboard.
-3.  **Asynchronous Processing:** Move the Agent subsystem and ML inference off the main Django HTTP request thread using Celery and Redis to prevent blocking under heavy load.
+1.  **Authentication & Authorization:** Implement JWT or Session auth for the API and dashboard.
+2.  **Asynchronous Processing:** Move the Agent subsystem and ML inference off the main Django HTTP request thread using Celery and Redis to prevent blocking under heavy load.
 4.  **Dedicated Inference Server:** Decouple the ML pipeline into an independent microservice to allow independent scaling of the web server and GPU inference nodes.

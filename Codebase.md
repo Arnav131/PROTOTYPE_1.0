@@ -1,6 +1,6 @@
 # Rakshak — Codebase Navigation Map
 
-**Rakshak** is a Django 4.2 monolith for railway predictive maintenance: dashboard, alerts, tickets, and an interactive map. Data lives in SQLite via 18 ORM models in `railway`. The UI is server-rendered templates plus vanilla JS (Chart.js, Leaflet).
+**Rakshak** is a Django 4.2 monolith for railway predictive maintenance: dashboard, alerts, tickets, and an interactive map. Data lives in PostgreSQL via 18 ORM models in `railway`. The UI is server-rendered templates plus vanilla JS (Chart.js, Leaflet).
 
 ---
 
@@ -194,7 +194,7 @@ Section breakdown (from `section_0.py` header): env setup → data → ADE anoma
 | **Alert severity / status enums** | `Alert.AlertType`, `Alert.Severity`, `Alert.Status` in `models.py` |
 | **Ticket priority / status enums** | `Ticket.Priority`, `Ticket.Status` in `models.py` |
 | **Simulated trains on map** | `api_trains()` in `map_view/api_views.py` |
-| **SQLite DB file** | `backend/db.sqlite3` (after migrate + seed) |
+| **PostgreSQL DB** | Configured via `DATABASE_URL` |
 | **Auth / login** | Not implemented (Phase 2+) |
 | **REST framework** | Not used; plain `JsonResponse` in `api_views.py` |
 | **Admin UI for models** | Not wired (`admin.py` is empty) |
