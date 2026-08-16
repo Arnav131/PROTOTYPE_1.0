@@ -139,7 +139,7 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 # DATABASE MIGRATION NOTE
 #
 # This configuration block does NOT affect the database.
-# Current DB: SQLite
+# Current DB: PostgreSQL
 # Future DB: PostgreSQL
 # Whether this code is PostgreSQL compatible: YES (no DB interaction)
 # Whether teammate needs to modify anything: NO
@@ -157,7 +157,7 @@ RAKSHAK_AI = {
         # This is the default for prototype and local development.
         'local': {
             'CLASS': 'ai_integration.local_provider.LocalPickleProvider',
-            'MODEL_DIR': str(BASE_DIR.parent / 'ai_engin' / 'trained_models'),
+            'MODEL_DIR': str(BASE_DIR / 'ai_models'),
             'WINDOW_SIZE': 16,
             'ALERT_THRESHOLD': 0.7,
             'CRITICAL_THRESHOLD': 0.9,

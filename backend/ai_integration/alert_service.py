@@ -24,15 +24,15 @@ WHO SHOULD NEVER USE THIS:
 #   - rakshak_alert (via Alert.objects.create)
 #   - rakshak_audit_log (via AuditLog.objects.create)
 #
-# Current DB: SQLite
-# Future DB: PostgreSQL
+# Current DB: PostgreSQL
+# Future DB: None
 #
 # Why this code exists:
 #   Centralizes AI-driven alert creation logic that was previously
 #   duplicated across agents. Uses transaction.atomic() for consistency.
 #
 # PostgreSQL compatible: YES
-#   - transaction.atomic() is fully supported (better than SQLite)
+#   - transaction.atomic() is fully supported
 #   - DecimalField for confidence_score is native PostgreSQL NUMERIC
 #   - CharField(unique=True) for alert_code uses PostgreSQL unique index
 #   - DateTimeField for generated_at uses PostgreSQL TIMESTAMPTZ
@@ -86,7 +86,7 @@ class AlertService:
         # DATABASE MIGRATION NOTE
         #
         # alert_code is a CharField(unique=True) in the Alert model.
-        # Both SQLite and PostgreSQL enforce uniqueness identically.
+        # PostgreSQL enforces uniqueness.
         # Teammate action: NONE
         # ---------------------------------------------------------------
         """
@@ -121,8 +121,8 @@ class AlertService:
         # Inserts into: rakshak_alert, rakshak_audit_log
         # Uses: transaction.atomic()
         #
-        # Current DB: SQLite
-        # Future DB: PostgreSQL
+        # Current DB: PostgreSQL
+        # Future DB: None
         # PostgreSQL compatible: YES
         # Teammate action: NONE
         # ---------------------------------------------------------------
@@ -222,8 +222,8 @@ class AlertService:
         # Inserts into: rakshak_alert, rakshak_audit_log
         # Uses: transaction.atomic()
         #
-        # Current DB: SQLite
-        # Future DB: PostgreSQL
+        # Current DB: PostgreSQL
+        # Future DB: None
         # PostgreSQL compatible: YES
         # Teammate action: NONE
         # ---------------------------------------------------------------

@@ -11,7 +11,7 @@ Rakshak is a prototype Railway Maintenance Dashboard built using Django. It prov
 - Alert Management
 - Ticket Management
 - Sensor Monitoring
-- SQLite database support
+- PostgreSQL database support
 - REST API backend
 - Preloaded demo data for testing
 
@@ -41,7 +41,6 @@ PROTOTYPE_1.0/
 │   ├── railway/
 │   ├── templates/
 │   ├── static/
-│   ├── db.sqlite3
 │   ├── manage.py
 │   └── requirements.txt
 │
@@ -57,6 +56,7 @@ PROTOTYPE_1.0/
 Make sure the following software is installed:
 
 - Python 3.10 or above
+- PostgreSQL
 - Git
 - pip
 
@@ -98,6 +98,16 @@ pip install -r requirements.txt
 ```
 
 This includes Django, PostgreSQL driver support, NumPy, PyTorch, and scikit-learn so the local pickle-based prediction pipeline can load correctly.
+
+---
+
+# Local PostgreSQL Setup
+
+1. Install and start PostgreSQL.
+2. Create a database named `rakshak`.
+3. Copy `.env.example` to `.env`.
+4. Update the `DATABASE_URL` in `.env` with your credentials:
+   `DATABASE_URL=postgresql://postgres:YOUR_PASSWORD@localhost:5432/rakshak`
 
 ---
 
@@ -160,6 +170,17 @@ http://127.0.0.1:8000/
 - Railway Map
 - Simulation (staff-only)
 - Sensors
+
+---
+
+# Deployment
+
+For production deployments, the application relies on environment variables.
+Ensure the deployment platform provides at minimum:
+- `DATABASE_URL`
+- `SECRET_KEY`
+- `DEBUG` (set to `False`)
+- `ALLOWED_HOSTS`
 
 ---
 

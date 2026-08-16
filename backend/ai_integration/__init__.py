@@ -36,8 +36,8 @@
 # DATABASE MIGRATION NOTE
 #
 # This code does NOT interact with the database schema.
-# Current DB: SQLite
-# Future DB: PostgreSQL
+# Current DB: PostgreSQL
+# Future DB: None
 # Whether this code is PostgreSQL compatible: YES (no DB interaction)
 # Whether teammate needs to modify anything: NO
 # ---------------------------------------------------------------------------

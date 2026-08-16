@@ -9,7 +9,6 @@ Endpoints:
 All endpoints return JSON. No template rendering.
 The frontend (or any HTTP client) calls these to get AI predictions.
 """
-
 import json
 import logging
 from decimal import Decimal
