@@ -29,8 +29,7 @@ import logging
 import uuid
 
 from django.contrib.auth.decorators import login_required
-from django.core.exceptions import PermissionDenied
-from django.http import JsonResponse
+from django.http import HttpResponseForbidden, JsonResponse
 from django.shortcuts import render
 from django.views.decorators.http import require_POST
 
@@ -44,10 +43,11 @@ logger = logging.getLogger("rakshak.simulation")
 def simulation_page(request):
     """
     GET /simulation/ — renders the terminal/pixel-art simulation page.
-    Admin-only (is_staff). Non-staff authenticated users get 403.
+    Staff-only controller tool.
     """
     if not request.user.is_staff:
-        raise PermissionDenied("Simulation is restricted to administrators.")
+        return HttpResponseForbidden("Simulation is restricted to administrators.")
+
     return render(request, "simulation.html")
 
 

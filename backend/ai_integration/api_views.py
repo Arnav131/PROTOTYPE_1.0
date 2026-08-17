@@ -23,8 +23,8 @@ These are consumed by the frontend dashboard and external integrations.
 #   - health view: NO database interaction.
 #   - providers view: NO database interaction.
 #
-# Current DB: SQLite
-# Future DB: PostgreSQL
+# Current DB: PostgreSQL
+# Future DB: None
 # Whether this code is PostgreSQL compatible: YES
 # Whether teammate needs to modify anything: NO
 # ---------------------------------------------------------------------------
@@ -100,8 +100,8 @@ def predict_view(request):
     #   - AlertService writes to rakshak_alert + rakshak_audit_log
     #   - TicketService writes to rakshak_ticket + rakshak_audit_log
     #
-    # Current DB: SQLite
-    # Future DB: PostgreSQL
+    # Current DB: PostgreSQL
+    # Future DB: None
     # PostgreSQL compatible: YES
     # Teammate action: NONE
     # -------------------------------------------------------------------

@@ -25,16 +25,16 @@ def navigation(request):
             'icon': 'map',
             'description': 'Railway Network',
         },
-        {
+    ]
+
+    # Add controller-only tools for staff users
+    if request.user.is_authenticated and request.user.is_staff:
+        nav_items.append({
             'name': 'Simulation',
             'url': '/simulation/',
             'icon': 'simulation',
             'description': 'Live Journey Simulation',
-        },
-    ]
-
-    # Add admin link for staff users
-    if request.user.is_authenticated and request.user.is_staff:
+        })
         nav_items.append({
             'name': 'Admin',
             'url': '/admin/',
@@ -59,4 +59,6 @@ def project_meta(request):
     return {
         "PROJECT_NAME": "Rakshak",
         "PROJECT_VERSION": "1.0",
+        "project_name": "RAKSHAK",
+        "project_subtitle": "Predictive Rail Maintenance",
     }

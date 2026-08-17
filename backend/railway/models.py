@@ -19,7 +19,7 @@ Constraints:
     - PROTECT on all critical infrastructure FK targets
     - DecimalField for all measurements and coordinates
     - UUIDField for sensor hardware identity
-    - SQLite compatible, PostgreSQL ready
+    - PostgreSQL ready
 """
 
 import uuid
