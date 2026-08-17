@@ -27,7 +27,7 @@ def navigation(request):
         },
     ]
 
-    # Simulation — admin/staff only. Same gate used for the Admin link below.
+    # Add controller-only tools for staff users
     if request.user.is_authenticated and request.user.is_staff:
         nav_items.append({
             'name': 'Simulation',
@@ -35,9 +35,6 @@ def navigation(request):
             'icon': 'simulation',
             'description': 'Live Journey Simulation',
         })
-
-    # Add admin link for staff users
-    if request.user.is_authenticated and request.user.is_staff:
         nav_items.append({
             'name': 'Admin',
             'url': '/admin/',

@@ -3,8 +3,8 @@
 Django settings for the Rakshak project — Phase 1 Prototype.
 
 This configuration uses:
-  - PostgreSQL as the default backend for deployed app environments
-  - SQLite as an optional local override via DATABASE_URL or DB_* env vars
+  - Supabase/PostgreSQL as the only supported database backend
+  - DATABASE_URL as the single database configuration input
   - Templates from frontend/templates/
   - Static files from frontend/static/
   - Authentication middleware and staff-only controls for privileged views
@@ -13,6 +13,7 @@ import os
 from pathlib import Path
 
 import dj_database_url
+from django.core.exceptions import ImproperlyConfigured
 from dotenv import load_dotenv
 
 
@@ -48,7 +49,6 @@ INSTALLED_APPS = [
     'map_view',
     'railway',
     'ai_integration',
-    'bounty',
     'simulation',
 ]
 
@@ -92,14 +92,39 @@ TEMPLATES = [
 WSGI_APPLICATION = 'rakshak_project.wsgi.application'
 
 # ---------------------------------------------------------------------------
-# Database — PostgreSQL by default, with SQLite override via DATABASE_URL
+# Database - Supabase/PostgreSQL only
 # ---------------------------------------------------------------------------
-_default_database_url = os.environ.get(
-    'DATABASE_URL',
-    'postgresql://postgres:password@localhost:5432/rakshak',
+_database_url = os.environ.get('DATABASE_URL')
+if not _database_url:
+    raise ImproperlyConfigured(
+        'DATABASE_URL is required. Set it to your Supabase PostgreSQL '
+        'connection string, for example: '
+        'postgresql://postgres.<project-ref>:<password>@'
+        'aws-<region>.pooler.supabase.com:5432/postgres?sslmode=require'
+    )
+
+if _database_url.lower().startswith(('sqlite:', 'sqlite3:')):
+    raise ImproperlyConfigured(
+        'SQLite is not supported in this project. Use a Supabase/PostgreSQL '
+        'DATABASE_URL instead.'
+    )
+
+_database_config = dj_database_url.parse(
+    _database_url,
+    conn_max_age=int(os.environ.get('DATABASE_CONN_MAX_AGE', '60')),
 )
+if _database_config.get('ENGINE') != 'django.db.backends.postgresql':
+    raise ImproperlyConfigured(
+        'DATABASE_URL must point to PostgreSQL/Supabase. SQLite and other '
+        'database engines are intentionally disabled.'
+    )
+
+_database_host = (_database_config.get('HOST') or '').lower()
+if _database_host.endswith(('supabase.co', 'supabase.com')):
+    _database_config.setdefault('OPTIONS', {}).setdefault('sslmode', 'require')
+
 DATABASES = {
-    'default': dj_database_url.config(default=_default_database_url, conn_max_age=600),
+    'default': _database_config,
 }
 
 # ---------------------------------------------------------------------------
