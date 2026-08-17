@@ -25,16 +25,13 @@ def navigation(request):
             'icon': 'map',
             'description': 'Railway Network',
         },
-    ]
-
-    # Simulation — admin/staff only. Same gate used for the Admin link below.
-    if request.user.is_authenticated and request.user.is_staff:
-        nav_items.append({
+        {
             'name': 'Simulation',
             'url': '/simulation/',
             'icon': 'simulation',
             'description': 'Live Journey Simulation',
-        })
+        },
+    ]
 
     # Add admin link for staff users
     if request.user.is_authenticated and request.user.is_staff:
