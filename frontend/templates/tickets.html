@@ -46,7 +46,9 @@
         <!-- Row 1: Search input -->
         <div class="search-row">
             <div class="search-input-wrapper">
-                <span class="search-icon">🔍</span>
+                <span class="search-icon">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+                </span>
                 <input
                     type="text"
                     id="ticket-search"
@@ -95,13 +97,13 @@
                 <label class="filter-dropdown-label" for="filter-missing">Missing Data</label>
                 <select id="filter-missing" class="filter-select" aria-label="Filter by missing data">
                     <option value="">All</option>
-                    <option value="true">⚠ Missing Inputs</option>
-                    <option value="false">✅ Complete</option>
+                    <option value="true">Missing Inputs</option>
+                    <option value="false">Complete</option>
                 </select>
             </div>
 
             <button class="filter-reset-btn" id="filter-reset-btn" title="Reset all filters">
-                ↺ Reset
+                Reset
             </button>
         </div>
 
@@ -124,17 +126,21 @@
 
     <!-- API Error -->
     <div class="filter-error" id="filter-error" style="display:none;">
-        <span class="filter-error-icon">⚠</span>
+        <span class="filter-error-icon">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
+        </span>
         <span id="filter-error-msg">Could not load tickets.</span>
         <button class="filter-btn" id="filter-retry-btn">Retry</button>
     </div>
 
     <!-- Empty State -->
     <div class="filter-empty" id="filter-empty" style="display:none;">
-        <div class="filter-empty-icon">🔍</div>
+        <div class="filter-empty-icon">
+            <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="opacity: 0.4;"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+        </div>
         <div class="filter-empty-title">No tickets match your filters</div>
         <div class="filter-empty-sub">Try adjusting your search or filter criteria.</div>
-        <button class="filter-reset-btn" id="filter-empty-reset-btn">↺ Reset Filters</button>
+        <button class="filter-reset-btn" id="filter-empty-reset-btn">Reset Filters</button>
     </div>
 
     <!-- ================================================================ -->
@@ -143,7 +149,9 @@
     <section class="ticket-table-section" id="ticket-list">
         <div class="data-card">
             <h2 class="section-title">
-                <span class="section-icon">🎫</span>
+                <span class="section-icon">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 7H4a2 2 0 0 0-2 2v2a2 2 0 0 1 0 4v2a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-2a2 2 0 0 1 0-4V9a2 2 0 0 0-2-2z"></path></svg>
+                </span>
                 Maintenance Tickets
             </h2>
             <div class="table-wrapper">
@@ -187,9 +195,13 @@
                             <td class="td-mono">{{ ticket.eta }}</td>
                             <td>
                                 {% if ticket.is_ready_for_ai %}
-                                <span class="readiness-badge readiness-badge--ready" title="All required inputs complete">✅</span>
+                                <span class="readiness-badge readiness-badge--ready" title="All required inputs complete">
+                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--accent-green)" stroke-width="2.5"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>
+                                </span>
                                 {% else %}
-                                <span class="readiness-badge readiness-badge--missing" title="Missing required inputs">⚠</span>
+                                <span class="readiness-badge readiness-badge--missing" title="Missing required inputs">
+                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--accent-yellow)" stroke-width="2.5"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
+                                </span>
                                 {% endif %}
                             </td>
                         </tr>
@@ -217,16 +229,16 @@
             <h3 class="ticket-card-title">{{ ticket.issue }}</h3>
             <div class="ticket-card-details">
                 <div class="ticket-card-detail">
-                    <span>🔗 Alert: <span style="color: var(--accent-cyan);" class="td-mono">{{ ticket.linked_alert }}</span></span>
+                    <span>Alert: <span style="color: var(--accent-cyan);" class="td-mono">{{ ticket.linked_alert }}</span></span>
                 </div>
                 <div class="ticket-card-detail">
-                    <span>🛤️ {{ ticket.section }}</span>
+                    <span>{{ ticket.section }}</span>
                 </div>
                 <div class="ticket-card-detail">
-                    <span>👥 {{ ticket.team }}</span>
+                    <span>{{ ticket.team }}</span>
                 </div>
                 <div class="ticket-card-detail">
-                    <span>⏱️ ETA: {{ ticket.eta }}</span>
+                    <span>ETA: {{ ticket.eta }}</span>
                 </div>
             </div>
 
@@ -261,9 +273,9 @@
 
                 <div class="ai-readiness" id="readiness-{{ ticket.id }}">
                     {% if ticket.is_ready_for_ai %}
-                    <span class="status-ready">✅ Ready for AI Analysis</span>
+                    <span class="status-ready">Ready for AI Analysis</span>
                     {% else %}
-                    <span class="status-pending">⏳ Missing Required Inputs</span>
+                    <span class="status-pending">Missing Required Inputs</span>
                     {% endif %}
                 </div>
             </div>
@@ -382,11 +394,11 @@
     function renderChips(params) {
         const chips = [];
         const labels = {
-            search:       '🔍',
-            section:      '🛤️ Section',
-            status:       '📋 Status',
-            team:         '👥 Agent',
-            missing_data: '⚠ Missing Data',
+            search:       '',
+            section:      'Section',
+            status:       'Status',
+            team:         'Agent',
+            missing_data: 'Missing Data',
         };
         const valueLabels = {
             missing_data: { true: 'Missing Inputs', false: 'Complete' }
@@ -436,8 +448,8 @@
         }
         tbody.innerHTML = tickets.map(t => {
             const readiness = t.has_missing_data
-                ? `<span class="readiness-badge readiness-badge--missing" title="Missing required inputs">⚠</span>`
-                : `<span class="readiness-badge readiness-badge--ready" title="All required inputs complete">✅</span>`;
+                ? `<span class="readiness-badge readiness-badge--missing" title="Missing required inputs"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--accent-yellow)" stroke-width="2.5"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg></span>`
+                : `<span class="readiness-badge readiness-badge--ready" title="All required inputs complete"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--accent-green)" stroke-width="2.5"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg></span>`;
             return `
             <tr id="ticket-${escapeHtml(t.id)}">
                 <td class="td-mono">${escapeHtml(t.id)}</td>
@@ -487,8 +499,8 @@
                     </div>
                     <div class="ai-readiness">
                         ${t.is_ready_for_ai
-                            ? '<span class="status-ready">✅ Ready for AI Analysis</span>'
-                            : '<span class="status-pending">⏳ Missing Required Inputs</span>'}
+                            ? '<span class="status-ready">Ready for AI Analysis</span>'
+                            : '<span class="status-pending">Missing Required Inputs</span>'}
                     </div>
                 </div>` : '';
 
@@ -500,10 +512,10 @@
                 </div>
                 <h3 class="ticket-card-title">${t.issue}</h3>
                 <div class="ticket-card-details">
-                    <div class="ticket-card-detail"><span>🔗 Alert: <span style="color:var(--accent-cyan);" class="td-mono">${escapeHtml(t.linked_alert)}</span></span></div>
-                    <div class="ticket-card-detail"><span>🛤️ ${t.section}</span></div>
-                    <div class="ticket-card-detail"><span>👥 ${escapeHtml(t.team)}</span></div>
-                    <div class="ticket-card-detail"><span>⏱️ ETA: ${escapeHtml(t.eta)}</span></div>
+                    <div class="ticket-card-detail"><span>Alert: <span style="color:var(--accent-cyan);" class="td-mono">${escapeHtml(t.linked_alert)}</span></span></div>
+                    <div class="ticket-card-detail"><span>${t.section}</span></div>
+                    <div class="ticket-card-detail"><span>${escapeHtml(t.team)}</span></div>
+                    <div class="ticket-card-detail"><span>ETA: ${escapeHtml(t.eta)}</span></div>
                 </div>
                 ${checklistHtml}
                 <div class="ticket-card-footer">
@@ -628,8 +640,8 @@
                 const readDiv = document.getElementById(`readiness-${ticketId}`);
                 if (readDiv) {
                     readDiv.innerHTML = data.is_ready_for_ai
-                        ? '<span class="status-ready">✅ Ready for AI Analysis</span>'
-                        : '<span class="status-pending">⏳ Missing Required Inputs</span>';
+                        ? '<span class="status-ready">Ready for AI Analysis</span>'
+                        : '<span class="status-pending">Missing Required Inputs</span>';
                 }
             } else {
                 alert('Failed to update checklist: ' + data.error);

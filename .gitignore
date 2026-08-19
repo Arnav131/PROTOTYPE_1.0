@@ -13,6 +13,7 @@ eggs/
 
 # Django
 db.sqlite3
+*.sqlite
 *.sqlite3
 db.sqlite3-journal
 staticfiles/

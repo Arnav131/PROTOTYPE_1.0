@@ -83,8 +83,8 @@ function animateCounters() {
 // ====================================================================
 
 // Shared Chart.js defaults — theme-aware
+// Shared Chart.js defaults — glass-themed
 function getChartDefaults() {
-    const dark = isDarkMode();
     return {
         responsive: true,
         maintainAspectRatio: false,
@@ -95,35 +95,37 @@ function getChartDefaults() {
         plugins: {
             legend: { display: false },
             tooltip: {
-                backgroundColor: dark ? '#111111' : '#f0f0f0',
-                titleColor: dark ? '#ffffff' : '#000000',
-                bodyColor: dark ? '#a0a0a0' : '#555555',
-                borderColor: dark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.08)',
+                backgroundColor: 'rgba(12, 15, 25, 0.92)',
+                titleColor: '#f0f2f5',
+                bodyColor: '#94a3b8',
+                borderColor: 'rgba(6, 214, 160, 0.15)',
                 borderWidth: 1,
-                padding: 12,
-                cornerRadius: 8,
-                titleFont: { family: 'Inter', weight: '600' },
-                bodyFont: { family: 'JetBrains Mono' },
+                padding: 14,
+                cornerRadius: 10,
+                titleFont: { family: 'Inter', weight: '600', size: 13 },
+                bodyFont: { family: 'JetBrains Mono', size: 12 },
+                boxPadding: 4,
+                usePointStyle: true,
             },
         },
         scales: {
             x: {
                 grid: {
-                    color: dark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.06)',
+                    color: 'rgba(255,255,255,0.03)',
                     drawBorder: false,
                 },
                 ticks: {
-                    color: dark ? '#666666' : '#888888',
+                    color: '#475569',
                     font: { family: 'JetBrains Mono', size: 10 },
                 },
             },
             y: {
                 grid: {
-                    color: dark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.06)',
+                    color: 'rgba(255,255,255,0.03)',
                     drawBorder: false,
                 },
                 ticks: {
-                    color: dark ? '#666666' : '#888888',
+                    color: '#475569',
                     font: { family: 'JetBrains Mono', size: 10 },
                 },
             },
@@ -139,24 +141,26 @@ function getCompactChartDefaults() {
         plugins: {
             legend: { display: false },
             tooltip: {
-                backgroundColor: '#171A21',
-                titleColor: '#F5F5F5',
-                bodyColor: '#9CA3AF',
-                borderColor: '#2A2F3A',
+                backgroundColor: 'rgba(12, 15, 25, 0.92)',
+                titleColor: '#f0f2f5',
+                bodyColor: '#94a3b8',
+                borderColor: 'rgba(6, 214, 160, 0.15)',
                 borderWidth: 1,
-                padding: 8,
-                cornerRadius: 6,
+                padding: 10,
+                cornerRadius: 8,
                 titleFont: { family: 'Inter', size: 11, weight: '600' },
                 bodyFont: { family: 'JetBrains Mono', size: 10 },
+                boxPadding: 3,
+                usePointStyle: true,
             },
         },
         scales: {
             x: {
-                display: false, // Hide x-axis for compactness
+                display: false,
             },
             y: {
-                grid: { color: 'rgba(255,255,255,0.04)', drawBorder: false },
-                ticks: { color: '#6B7280', font: { family: 'JetBrains Mono', size: 9 }, maxTicksLimit: 4 },
+                grid: { color: 'rgba(255,255,255,0.03)', drawBorder: false },
+                ticks: { color: '#475569', font: { family: 'JetBrains Mono', size: 9 }, maxTicksLimit: 4 },
             },
         },
     };
@@ -180,9 +184,9 @@ function createGradient(ctx, colorTop, colorBottom) {
 window.rakshakChartInstances = window.rakshakChartInstances || {};
 
 function getChartColorConfig(type, values) {
-    if (!values || values.length === 0) return { main: '#10b981', bg: 'rgba(16,185,129,0.2)' };
+    if (!values || values.length === 0) return { main: '#06d6a0', bg: 'rgba(6,214,160,0.15)', status: 'healthy' };
     const lastValue = values[values.length - 1];
-    let status = 'healthy'; // default
+    let status = 'healthy';
     
     if (type === 'vibration') {
         if (lastValue > 5.0) status = 'critical';
@@ -204,9 +208,77 @@ function getChartColorConfig(type, values) {
         else if (lastValue >= 1.2) status = 'warning';
     }
 
-    if (status === 'critical') return { main: '#ef4444', bg: 'rgba(239,68,68,0.2)' }; // Red
-    if (status === 'warning') return { main: '#f59e0b', bg: 'rgba(245,158,11,0.2)' }; // Amber
-    return { main: '#10b981', bg: 'rgba(16,185,129,0.2)' }; // Green
+    if (status === 'critical') return { main: '#ef4444', bg: 'rgba(239,68,68,0.12)', status: 'critical' };
+    if (status === 'warning') return { main: '#f59e0b', bg: 'rgba(245,158,11,0.12)', status: 'warning' };
+    return { main: '#06d6a0', bg: 'rgba(6,214,160,0.12)', status: 'healthy' };
+}
+
+/**
+ * Generate plain-English data insight for a chart.
+ * This makes graphs understandable to non-technical judges.
+ */
+function generateDataInsight(type, values) {
+    if (!values || values.length < 2) return { text: 'Collecting data...', level: 'info' };
+    
+    const last = values[values.length - 1];
+    const avg = values.reduce((a, b) => a + b, 0) / values.length;
+    const max = Math.max(...values);
+    const min = Math.min(...values);
+    const trend = values[values.length - 1] - values[Math.max(0, values.length - 6)];
+    const trendDir = trend > 0.1 ? 'rising' : trend < -0.1 ? 'falling' : 'stable';
+    const trendIcon = trend > 0.1 ? '↑' : trend < -0.1 ? '↓' : '→';
+    
+    let insight = { text: '', level: 'healthy' };
+    
+    if (type === 'vibration') {
+        if (last > 5.0) {
+            insight = { text: `Vibration is <strong>critically high</strong> at ${last.toFixed(1)} mm/s ${trendIcon} — immediate inspection needed`, level: 'critical' };
+        } else if (last >= 3.5) {
+            insight = { text: `Vibration <strong>approaching threshold</strong> at ${last.toFixed(1)} mm/s ${trendIcon} — monitor closely`, level: 'warning' };
+        } else {
+            insight = { text: `Vibration <strong>within safe range</strong> at ${last.toFixed(1)} mm/s ${trendIcon} — all clear`, level: 'healthy' };
+        }
+    } else if (type === 'temperature') {
+        if (last > 50) {
+            insight = { text: `Rail temp <strong>dangerously high</strong> at ${last.toFixed(0)}°C ${trendIcon} — risk of track buckling`, level: 'critical' };
+        } else if (last >= 40) {
+            insight = { text: `Rail temp <strong>elevated</strong> at ${last.toFixed(0)}°C ${trendIcon} — ${trendDir === 'rising' ? 'still rising' : 'stabilizing'}`, level: 'warning' };
+        } else {
+            insight = { text: `Rail temp <strong>normal</strong> at ${last.toFixed(0)}°C ${trendIcon} — safe operating range`, level: 'healthy' };
+        }
+    } else if (type === 'gauge') {
+        const absLast = Math.abs(last);
+        if (absLast > 6) {
+            insight = { text: `Gauge deviation <strong>critical</strong> at ${last.toFixed(1)}mm ${trendIcon} — track alignment issue`, level: 'critical' };
+        } else if (absLast >= 2) {
+            insight = { text: `Gauge deviation <strong>notable</strong> at ${last.toFixed(1)}mm ${trendIcon} — schedule inspection`, level: 'warning' };
+        } else {
+            insight = { text: `Gauge deviation <strong>minimal</strong> at ${last.toFixed(1)}mm ${trendIcon} — track well-aligned`, level: 'healthy' };
+        }
+    } else if (type === 'strain') {
+        if (last > 3.5) {
+            insight = { text: `Strain load <strong>excessive</strong> at ${last.toFixed(1)} kN ${trendIcon} — structural stress detected`, level: 'critical' };
+        } else if (last >= 2.5) {
+            insight = { text: `Strain load <strong>elevated</strong> at ${last.toFixed(1)} kN ${trendIcon} — increased traffic load`, level: 'warning' };
+        } else {
+            insight = { text: `Strain load <strong>normal</strong> at ${last.toFixed(1)} kN ${trendIcon} — structure healthy`, level: 'healthy' };
+        }
+    }
+    
+    return insight;
+}
+
+/**
+ * Update the data-insight box in the DOM for a chart.
+ */
+function updateDataInsightUI(chartId, type, values) {
+    const el = document.getElementById(`insight-${chartId}`);
+    if (!el) return;
+    const insight = generateDataInsight(type, values);
+    el.innerHTML = insight.text;
+    el.className = 'data-insight';
+    if (insight.level === 'warning') el.classList.add('data-insight--warning');
+    else if (insight.level === 'critical') el.classList.add('data-insight--critical');
 }
 
 function updateChartStats(id, values, statsData, statKey) {
@@ -250,6 +322,7 @@ function initDashboardCharts(data) {
         if (!canvas) return;
         const ctx = canvas.getContext('2d');
         const colors = getChartColorConfig(id, values);
+        const pointBg = '#07080d';
         
         window.rakshakChartInstances[id] = new Chart(ctx, {
             type: 'line',
@@ -260,12 +333,15 @@ function initDashboardCharts(data) {
                     data: values,
                     borderColor: colors.main,
                     backgroundColor: createGradient(ctx, colors.bg, 'rgba(0,0,0,0)'),
-                    borderWidth: 1.5,
+                    borderWidth: 2,
                     pointBackgroundColor: colors.main,
-                    pointBorderColor: pointBorder,
-                    pointBorderWidth: 1,
-                    pointRadius: 2,
-                    pointHoverRadius: 4,
+                    pointBorderColor: pointBg,
+                    pointBorderWidth: 1.5,
+                    pointRadius: 0,
+                    pointHoverRadius: 5,
+                    pointHoverBackgroundColor: colors.main,
+                    pointHoverBorderColor: '#ffffff',
+                    pointHoverBorderWidth: 2,
                     fill: true,
                     tension: 0.4,
                 }],
@@ -274,6 +350,7 @@ function initDashboardCharts(data) {
         });
         
         updateChartStats(id, values, data.sensor_stats, statsKey || id);
+        updateDataInsightUI(id, id === 'gauge' ? 'gauge' : (id === 'strain' ? 'strain' : id), values);
     }
 
     createCompactChart('vibration', 'Vibration (mm/s)', data.vibration);
@@ -322,11 +399,11 @@ function initDashboardMap() {
     ]).then(([stations, routes]) => {
         stations.forEach(s => {
             if (s.latitude && s.longitude) {
-                var color = s.health === 'critical' ? '#DC2626' : s.health === 'warning' ? '#D97706' : '#16A34A';
+                var color = s.health === 'critical' ? '#ef4444' : s.health === 'warning' ? '#f59e0b' : '#06d6a0';
                 L.circleMarker([s.latitude, s.longitude], {
                     radius: 3,
                     fillColor: color,
-                    fillOpacity: 0.8,
+                    fillOpacity: 0.9,
                     color: color,
                     weight: 1,
                 }).addTo(map);
@@ -336,11 +413,11 @@ function initDashboardMap() {
         
         routes.forEach(route => {
             if (route.geometry && route.geometry.length >= 2) {
-                var color = route.status === 'critical' ? '#DC2626' : route.status === 'warning' ? '#D97706' : 'rgba(37,99,235,0.4)';
+                var color = route.status === 'critical' ? '#ef4444' : route.status === 'warning' ? '#f59e0b' : 'rgba(6,214,160,0.35)';
                 var polyline = L.polyline(route.geometry, {
                     color: color,
                     weight: 1.5,
-                    opacity: 0.7,
+                    opacity: 0.8,
                 }).addTo(map);
                 mapBounds.extend(polyline.getBounds());
             }
@@ -522,12 +599,15 @@ function initChartModal() {
                     data: data[dataKey],
                     borderColor: colors.main,
                     backgroundColor: createGradient(ctx, colors.bg, 'rgba(0,0,0,0)'),
-                    borderWidth: 2,
+                    borderWidth: 2.5,
                     pointBackgroundColor: colors.main,
-                    pointBorderColor: '#171A21',
-                    pointBorderWidth: 1,
+                    pointBorderColor: '#07080d',
+                    pointBorderWidth: 2,
                     pointRadius: 3,
-                    pointHoverRadius: 6,
+                    pointHoverRadius: 7,
+                    pointHoverBackgroundColor: '#ffffff',
+                    pointHoverBorderColor: colors.main,
+                    pointHoverBorderWidth: 3,
                     fill: true,
                     tension: 0.4,
                 }],

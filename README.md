@@ -21,7 +21,7 @@ Rakshak is a prototype Railway Maintenance Dashboard built using Django. It prov
 
 - Python 3.10+
 - Django 4.2+
-- PostgreSQL (default) with SQLite override support via `DATABASE_URL`
+- Supabase/PostgreSQL via required `DATABASE_URL`
 - PyTorch 2.2+
 - NumPy
 - scikit-learn
@@ -56,7 +56,7 @@ PROTOTYPE_1.0/
 Make sure the following software is installed:
 
 - Python 3.10 or above
-- PostgreSQL
+- A Supabase project with a Postgres database
 - Git
 - pip
 
@@ -101,13 +101,16 @@ This includes Django, PostgreSQL driver support, NumPy, PyTorch, and scikit-lear
 
 ---
 
-# Local PostgreSQL Setup
+# Supabase Database Setup
 
-1. Install and start PostgreSQL.
-2. Create a database named `rakshak`.
-3. Copy `.env.example` to `.env`.
-4. Update the `DATABASE_URL` in `.env` with your credentials:
-   `DATABASE_URL=postgresql://postgres:YOUR_PASSWORD@localhost:5432/rakshak`
+1. Create or open a Supabase project.
+2. In Supabase, open **Connect** and copy the Postgres connection string.
+3. For local Django development, prefer the **Session pooler** URL because it works on IPv4 networks.
+4. Copy `.env.example` to `.env`.
+5. Set `DATABASE_URL` in `.env`:
+   `DATABASE_URL=postgresql://postgres.<PROJECT_REF>:<PASSWORD>@aws-<REGION>.pooler.supabase.com:5432/postgres?sslmode=require`
+
+SQLite is intentionally disabled. If `DATABASE_URL` is missing or points to SQLite, Django raises a setup error before startup.
 
 ---
 
@@ -137,11 +140,15 @@ python manage.py seed_routes
 ```
 
 ```bash
+python manage.py seed_sensors
+```
+
+```bash
 python manage.py seed_demo_data
 ```
 
 ```bash
-python manage.py seed_sensors
+python manage.py seed_users
 ```
 
 These commands populate the database with sample railway assets, routes, sensors, alerts, and tickets.
@@ -207,16 +214,16 @@ No manual database setup is required after running the seed commands.
 
 # Deployment
 
-Set the following environment variables in production or for local overrides:
+Set the following environment variables in production or local development:
 
 ```bash
-export DATABASE_URL="postgresql://postgres:password@localhost:5432/rakshak"
+export DATABASE_URL="postgresql://postgres.<PROJECT_REF>:<PASSWORD>@aws-<REGION>.pooler.supabase.com:5432/postgres?sslmode=require"
 export SECRET_KEY="change-me-in-production"
 export DEBUG="False"
 export ALLOWED_HOSTS="localhost,127.0.0.1"
 ```
 
-`DEBUG` and `ALLOWED_HOSTS` are read from environment variables at runtime, and the app falls back to safe local defaults when unset.
+`DATABASE_URL` is required at runtime. `DEBUG` and `ALLOWED_HOSTS` are read from environment variables and fall back to local development defaults when unset.
 
 ---
 
@@ -234,8 +241,9 @@ If demo data needs to be regenerated, rerun the seed commands:
 ```bash
 python manage.py seed_master_data
 python manage.py seed_routes
-python manage.py seed_demo_data
 python manage.py seed_sensors
+python manage.py seed_demo_data
+python manage.py seed_users
 ```
 
 ---

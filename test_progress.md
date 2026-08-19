@@ -19,8 +19,8 @@ Baseline increment: added focused tests for `simulation` (access/navigation) and
 
 ```bash
 cd backend
-# local dev DB — use sqlite override so no Postgres install is required for CI:
-export DATABASE_URL="sqlite:///test_db.sqlite3"
+# Required app DB - use the same Supabase/PostgreSQL URL format as `.env.example`:
+export DATABASE_URL="postgresql://postgres.<PROJECT_REF>:<PASSWORD>@aws-<REGION>.pooler.supabase.com:5432/postgres?sslmode=require"
 pip install -r ../requirements.txt
 
 python manage.py check
