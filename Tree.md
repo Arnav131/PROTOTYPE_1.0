@@ -5,7 +5,6 @@ D:.
 │   .env.example
 │   .gitignore
 │   AI_ENGINE_GUIDE.md
-│   bounty.md
 │   check_all_py.py
 │   Codebase.md
 │   improvements.md
@@ -115,17 +114,11 @@ D:.
 │   │   ├───__init__.py
 │   │   ├───urls.py
 │   │   └───views.py
-│   ├───bounty
-│   │   ├───__init__.py
-│   │   ├───apps.py
-│   │   ├───urls.py
-│   │   └───views.py
 │   ├───check_templates.py
 │   ├───core
 │   │   ├───__init__.py
 │   │   ├───context_processors.py
 │   │   └───utils.py
-│   ├───db.sqlite3
 │   ├───manage.py
 │   ├───map_view
 │   │   ├───__init__.py

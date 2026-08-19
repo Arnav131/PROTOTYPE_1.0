@@ -1,7 +1,7 @@
 <!-- frontend/templates/alerts.html -->
 <!--
   Alerts page — displays all infrastructure alerts with severity filtering.
-  Each alert shows severity badge, description, location, and timestamp.
+  Glass UI design with SVG icons, status dots, and clean data presentation.
 -->
 {% extends "base.html" %}
 {% load static %}
@@ -48,13 +48,13 @@
                id="filter-all">All</a>
             <a href="?severity=critical"
                class="filter-btn filter-btn--critical {% if current_filter == 'critical' %}filter-btn--active{% endif %}"
-               id="filter-critical">🔴 Critical</a>
+               id="filter-critical"><span class="status-dot status-dot--critical"></span> Critical</a>
             <a href="?severity=warning"
                class="filter-btn filter-btn--warning {% if current_filter == 'warning' %}filter-btn--active{% endif %}"
-               id="filter-warning">🟡 Warning</a>
+               id="filter-warning"><span class="status-dot status-dot--warning"></span> Warning</a>
             <a href="?severity=info"
                class="filter-btn filter-btn--info {% if current_filter == 'info' %}filter-btn--active{% endif %}"
-               id="filter-info">🔵 Info</a>
+               id="filter-info"><span class="status-dot status-dot--info"></span> Info</a>
         </div>
     </section>
 
@@ -63,15 +63,18 @@
     <!-- ================================================================ -->
     <section class="alert-list" id="alert-list">
         {% for alert in alerts %}
-        <div class="alert-card alert-card--{{ alert.severity }}" id="alert-{{ alert.id }}" onclick="window.location.href='{% url \'map_view:map\' %}?focus_alert={{ alert.id }}'" style="cursor: pointer;">
+        <div class="alert-card alert-card--{{ alert.severity }}" id="alert-{{ alert.id }}"
+             onclick="window.location.href='{% url 'map_view:map' %}?focus_alert={{ alert.id }}'"
+             style="cursor: pointer;">
             <div class="alert-severity-strip"></div>
             <div class="alert-body">
                 <div class="alert-header">
                     <div class="alert-title-row">
                         <span class="severity-badge severity-badge--{{ alert.severity }}">
-                            {% if alert.severity == 'critical' %}🔴 CRITICAL
-                            {% elif alert.severity == 'warning' %}🟡 WARNING
-                            {% else %}🔵 INFO{% endif %}
+                            <span class="status-dot status-dot--{{ alert.severity }}"></span>
+                            {% if alert.severity == 'critical' %}CRITICAL
+                            {% elif alert.severity == 'warning' %}WARNING
+                            {% else %}INFO{% endif %}
                         </span>
                         <h3 class="alert-title">{{ alert.title }}</h3>
                     </div>
@@ -85,22 +88,30 @@
                 <p class="alert-description">{{ alert.description }}</p>
                 <div class="alert-details">
                     <div class="alert-detail">
-                        <span class="detail-icon">🛤️</span>
+                        <span class="detail-icon">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"></path><line x1="4" y1="22" x2="4" y2="15"></line></svg>
+                        </span>
                         <span class="detail-label">Track:</span>
                         <span class="detail-value">{{ alert.track_id }}</span>
                     </div>
                     <div class="alert-detail">
-                        <span class="detail-icon">📍</span>
+                        <span class="detail-icon">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path><circle cx="12" cy="10" r="3"></circle></svg>
+                        </span>
                         <span class="detail-label">Station:</span>
                         <span class="detail-value">{{ alert.station }}</span>
                     </div>
                     <div class="alert-detail">
-                        <span class="detail-icon">🏢</span>
+                        <span class="detail-icon">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><line x1="3" y1="9" x2="21" y2="9"></line><line x1="9" y1="21" x2="9" y2="9"></line></svg>
+                        </span>
                         <span class="detail-label">Zone:</span>
                         <span class="detail-value">{{ alert.zone }}</span>
                     </div>
                     <div class="alert-detail">
-                        <span class="detail-icon">🕐</span>
+                        <span class="detail-icon">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
+                        </span>
                         <span class="detail-label">Time:</span>
                         <span class="detail-value">{{ alert.timestamp }}</span>
                     </div>
@@ -109,7 +120,9 @@
         </div>
         {% empty %}
         <div class="empty-state">
-            <div class="empty-icon">✅</div>
+            <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="var(--accent-primary)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="margin-bottom: 16px; opacity: 0.5;">
+                <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline>
+            </svg>
             <p>No alerts matching the current filter.</p>
         </div>
         {% endfor %}

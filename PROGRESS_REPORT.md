@@ -41,7 +41,7 @@ Maine dekha:
 3. Sidebar navigation (`backend/core/context_processors.py`) mein Simulation ka koi `nav_item` add nahi kiya gaya.
 4. Simulation ka API (`/api/simulation/run/`) pe **koi permission/admin check nahi hai** — matlab agar wire bhi kar diya jaaye as-is, to koi bhi user (even non-logged-in) use kar payega, sirf admin nahi.
 
-Maine locally in sab ko temporarily wire karke test kiya (sqlite db pe) — page `200 OK` return karta hai, aur `/api/simulation/run/` bhi valid JSON prediction return karta hai. Matlab **feature functionally kaam karta hai**, bas connect nahi hua hai aur admin-gate missing hai.
+Maine locally in sab ko temporarily wire karke test kiya tha; current runtime config ab Supabase/PostgreSQL `DATABASE_URL` require karta hai. Page `200 OK` return karta hai, aur `/api/simulation/run/` bhi valid JSON prediction return karta hai. Matlab **feature functionally kaam karta hai**, bas target database pe migrations/seed ke saath verify karna hai.
 
 Isi wajah se maine `improvements.md` mein Antigravity ke liye exact prompt likha hai — jisme:
 - Simulation ko properly wire karna
@@ -59,7 +59,7 @@ Poori detailed technical list `improvements.md` mein hai, yahan sirf summary:
 1. **Missing dependencies** — `numpy`, `torch`, `scikit-learn` `requirements.txt` mein nahi hain jabki AI pipeline ko chahiye. Server actual chalane pe log mein clearly dikha: `"No module named 'torch'"`, jiske wajah se real ML model kabhi load hi nahi hota, hamesha rule-based fallback chalta hai.
 2. **Simulation feature disconnected** (upar detail mein bataya).
 3. **Security gaps** — `DEBUG=True` hardcoded, weak hardcoded `SECRET_KEY`, `ALLOWED_HOSTS=['*']`, prediction/simulation APIs `@csrf_exempt` aur bina auth ke.
-4. **Documentation mismatch** — README kehta hai "Only Django is required", PROJECT_REPORT.md kehta hai PyTorch use hota hai, settings.py comment kehta hai "SQLite default" jabki actual code postgres ko default banata hai. Teeno alag-alag baatein.
+4. **Documentation mismatch** — README, setup runbook, reports, aur settings comments ko Supabase/PostgreSQL-only setup ke saath aligned rakhna zaroori hai.
 5. **Stray binary file** — root mein `temp_pipeline.py` ek corrupt/binary file hai (UTF-8 mein read nahi hoti), jo galti se commit ho gaya lagta hai.
 6. **Zero test coverage** in 8 out of 10 Django apps.
 7. `Tree.md` outdated hai — usme `simulation`, `ai_models` folders show hi nahi hote jo repo mein already hain.

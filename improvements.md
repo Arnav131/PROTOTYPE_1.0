@@ -15,7 +15,7 @@ During this pass the following were implemented and validated locally: `simulati
 
 ### A.0 Context (read before starting)
 
-The Simulation feature is **already ~90% implemented** in this repo but is completely disconnected from the running application. Do not rebuild it from scratch — wire the existing code in and add the missing admin gate. The following files already exist and are functionally correct (verified by running them locally against a SQLite test DB):
+The Simulation feature is **already ~90% implemented** in this repo but is completely disconnected from the running application. Do not rebuild it from scratch — wire the existing code in and add the missing admin gate. The following files already exist and are functionally correct; verify them against the configured Supabase/PostgreSQL `DATABASE_URL`:
 
 - `backend/simulation/views.py` — `simulation_page(request)` (renders `simulation.html`) and `api_run_simulation(request)` (POST endpoint, generates a synthetic journey and runs it through `ai_integration.prediction_service.PredictionService`).
 - `backend/simulation/generator.py` — synthetic sensor-reading generator (local fallback + optional LLM backend).
@@ -305,7 +305,7 @@ Do **not** change any visual styling of `simulation.html`/`simulation.css` in th
 
 ## PART B — BUGS TO FIX (found via static analysis + live run + test suite execution)
 
-Each bug below was independently verified — not guessed — by actually installing dependencies, running Django's `check`/`migrate`/`test` management commands, and starting the dev server against a temporary SQLite database. Fix all of these in this same pass.
+Each bug below was independently verified — not guessed — by actually installing dependencies and running Django's `check`/`migrate`/`test` management commands. Current verification should use the configured Supabase/PostgreSQL `DATABASE_URL`; SQLite is not a supported app database.
 
 ### B.1 [CRITICAL] Missing ML dependencies in `requirements.txt`
 
@@ -382,10 +382,10 @@ This file fails UTF-8 decoding (`'utf-8' codec can't decode byte 0xff in positio
 
 - `README.md`: "Only Django is required for the prototype dashboard."
 - `PROJECT_REPORT.md`: describes a "PyTorch-based inference pipeline" as core architecture.
-- `backend/rakshak_project/settings.py` module docstring: "This configuration uses: SQLite (default, no Postgres yet)" — but the actual `DATABASES` default value is `postgresql://postgres:password@localhost:5432/rakshak`, not SQLite.
+- `backend/rakshak_project/settings.py` module docstring/config must say Supabase/PostgreSQL is the only supported app database and must require `DATABASE_URL`.
 - `Tree.md`: does not list the `backend/simulation/`, `backend/ai_models/`, or `backend/ai_integration/` directories at all, even though they exist and are load-bearing.
 
-**Fix:** Regenerate `Tree.md` from the actual current file tree (a simple `tree /F` on Windows or `find . -not -path '*/.git/*'` on Linux, matching the existing format). Correct the settings.py docstring to say Postgres is the real default with SQLite only as an optional override via `DATABASE_URL`. Reconcile README vs PROJECT_REPORT.md on the ML stack description (see B.1 — the real answer is PyTorch is required, so both docs should say so consistently).
+**Fix:** Regenerate `Tree.md` from the actual current file tree (a simple `tree /F` on Windows or `find . -not -path '*/.git/*'` on Linux, matching the existing format). Correct the settings.py docstring to say Supabase/PostgreSQL is required via `DATABASE_URL`. Reconcile README vs PROJECT_REPORT.md on the ML stack description (see B.1 — the real answer is PyTorch is required, so both docs should say so consistently).
 
 ### B.6 [LOW] `railway/tests.py` is an empty Django boilerplate stub
 
