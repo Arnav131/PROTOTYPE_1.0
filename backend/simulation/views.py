@@ -66,7 +66,7 @@ def api_run_simulation(request):
             "source": "...",
             "destination": "...",
             "sensor_id": "SIM-xxxxxxxx",
-            "generator_backend": "local" | "anthropic" | "openai_compatible",
+            "generator_backend": "grok" | "gemini" | "anthropic" | "openai_compatible" | "ollama" | "physics_iot_rng",
             "scenario_flavour": "gauge_widening",
             "readings": [ {...} x16 ],
             "prediction": { ...same shape as /api/predict/ ... },
