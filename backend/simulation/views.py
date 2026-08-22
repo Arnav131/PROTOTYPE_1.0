@@ -135,6 +135,8 @@ def api_run_simulation(request):
         "readings": readings,
         "prediction": prediction,
         "suggestions": suggestions,
+        "target_readiness_case": "OPR-DEP-12951",
+        "readiness_url": "/readiness/?case=OPR-DEP-12951",
     })
 
 
