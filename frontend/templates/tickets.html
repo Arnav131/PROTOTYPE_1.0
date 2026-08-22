@@ -1,970 +1,304 @@
-<!-- frontend/templates/tickets.html -->
-<!--
-  Tickets page — maintenance ticket management view.
-  Shows ticket table with status badges, priority, assigned engineer, and ETA.
-  Includes: search bar, section/status/team/missing-data filters, AJAX update.
--->
 {% extends "base.html" %}
 {% load static %}
 
 {% block content %}
-<div class="tickets-page">
+<div class="ops-page tickets-page">
+    <div class="header-row ops-page-header">
+        <div class="greeting">
+            <h1>Tickets <span class="user-name">Desk</span></h1>
+            <p>{{ summary.open }} open - {{ summary.assigned }} assigned - {{ summary.critical_priority }} critical priority</p>
+        </div>
+        <div class="header-actions">
+            <div class="search-pill ops-search-pill ops-search-input">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6f6579" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"></circle><path d="m21 21-4.35-4.35"></path></svg>
+                <input type="text" id="ticket-search" placeholder="Search tickets..." autocomplete="off" aria-label="Search tickets">
+                <button class="search-clear-btn" id="search-clear-btn" type="button" aria-label="Clear search">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"></path><path d="m6 6 12 12"></path></svg>
+                </button>
+            </div>
+            <div class="tab-group ops-tabs">
+                <a class="tab {% if current_filter == 'all' %}tab--active{% endif %}" href="?status=all">All</a>
+                <a class="tab {% if current_filter == 'open' %}tab--active{% endif %}" href="?status=open">Open</a>
+                <a class="tab {% if current_filter == 'assigned' %}tab--active{% endif %}" href="?status=assigned">Assigned</a>
+                <a class="tab {% if current_filter == 'resolved' %}tab--active{% endif %}" href="?status=resolved">Resolved</a>
+            </div>
+        </div>
+    </div>
 
-    <!-- ================================================================ -->
-    <!-- TICKET SUMMARY BAR                                               -->
-    <!-- ================================================================ -->
-    <section class="ticket-summary" id="ticket-summary">
-        <div class="summary-cards">
-            <div class="summary-card summary-card--total">
-                <div class="summary-value">{{ summary.total }}</div>
-                <div class="summary-label">Total Tickets</div>
-            </div>
-            <div class="summary-card summary-card--critical">
-                <div class="summary-value">{{ summary.assigned }}</div>
-                <div class="summary-label">Assigned</div>
-            </div>
-            <div class="summary-card summary-card--warning">
-                <div class="summary-value">{{ summary.scheduled }}</div>
-                <div class="summary-label">Scheduled</div>
-            </div>
-            <div class="summary-card summary-card--info">
-                <div class="summary-value">{{ summary.resolved }}</div>
-                <div class="summary-label">Resolved</div>
-            </div>
-            <div class="summary-card summary-card--active">
-                <div class="summary-value">{{ summary.critical_priority }}</div>
-                <div class="summary-label">Critical Priority</div>
-            </div>
+    <section class="ops-summary-grid" aria-label="Ticket summary">
+        <div class="card kpi ops-summary-card">
+            <div class="kpi-head"><span class="kpi-label">Total</span><span class="kpi-icon"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M20 7H4a2 2 0 0 0-2 2v2a2 2 0 0 1 0 4v2a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-2a2 2 0 0 1 0-4V9a2 2 0 0 0-2-2z"></path></svg></span></div>
+            <div class="kpi-value"><b class="num">{{ summary.total }}</b><span class="kpi-unit">tickets</span></div>
+            <div class="kpi-delta"><span class="lbl">maintenance work orders</span></div>
+        </div>
+        <div class="card kpi ops-summary-card ops-summary-card--critical">
+            <div class="kpi-head"><span class="kpi-label">Critical</span><span class="kpi-icon"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><path d="M12 9v4"></path><path d="M12 17h.01"></path></svg></span></div>
+            <div class="kpi-value"><b class="num">{{ summary.critical_priority }}</b><span class="kpi-unit">priority</span></div>
+            <div class="kpi-delta"><span class="val neg">dispatch first</span></div>
+        </div>
+        <div class="card kpi ops-summary-card ops-summary-card--warning">
+            <div class="kpi-head"><span class="kpi-label">Assigned</span><span class="kpi-icon"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-8 0v2"></path><circle cx="12" cy="7" r="4"></circle></svg></span></div>
+            <div class="kpi-value"><b class="num">{{ summary.assigned }}</b><span class="kpi-unit">teams</span></div>
+            <div class="kpi-delta"><span class="val warn">{{ summary.scheduled }} scheduled</span></div>
+        </div>
+        <div class="card kpi ops-summary-card ops-summary-card--info">
+            <div class="kpi-head"><span class="kpi-label">In Progress</span><span class="kpi-icon"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v4"></path><path d="M12 18v4"></path><path d="m4.93 4.93 2.83 2.83"></path><path d="m16.24 16.24 2.83 2.83"></path><path d="M2 12h4"></path><path d="M18 12h4"></path></svg></span></div>
+            <div class="kpi-value"><b class="num">{{ summary.in_progress }}</b><span class="kpi-unit">active</span></div>
+            <div class="kpi-delta"><span class="val pos">field work</span></div>
+        </div>
+        <div class="card kpi ops-summary-card">
+            <div class="kpi-head"><span class="kpi-label">Resolved</span><span class="kpi-icon"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"></path></svg></span></div>
+            <div class="kpi-value"><b class="num">{{ summary.resolved }}</b><span class="kpi-unit">closed</span></div>
+            <div class="kpi-delta"><span class="lbl">ready for audit</span></div>
         </div>
     </section>
 
-    <!-- ================================================================ -->
-    <!-- SEARCH & FILTER PANEL                                            -->
-    <!-- ================================================================ -->
-    <section class="filter-bar" id="ticket-filters">
-
-        <!-- Row 1: Search input -->
-        <div class="search-row">
-            <div class="search-input-wrapper">
-                <span class="search-icon">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
-                </span>
-                <input
-                    type="text"
-                    id="ticket-search"
-                    class="search-input"
-                    placeholder="Search ticket titles, descriptions, sections…"
-                    autocomplete="off"
-                    aria-label="Search tickets"
-                >
-                <button class="search-clear-btn" id="search-clear-btn" title="Clear search" aria-label="Clear search">✕</button>
-            </div>
+    <section class="ops-filter-bar ops-ticket-filters" id="ticket-filters" aria-label="Ticket filters">
+        <div class="ops-filter-group">
+            <span class="sub-label">Filter</span>
+            <select id="filter-section" class="filter-select" aria-label="Filter by section">
+                <option value="">Zone: All</option>
+                {% for section in filter_sections %}
+                <option value="{{ section }}">{{ section }}</option>
+                {% endfor %}
+            </select>
+            <select id="filter-status" class="filter-select" aria-label="Filter by status">
+                <option value="">Status: Any</option>
+                {% for status in filter_statuses %}
+                <option value="{{ status }}">
+                    {% if status == 'in_progress' %}In Progress{% else %}{{ status|title }}{% endif %}
+                </option>
+                {% endfor %}
+            </select>
+            <select id="filter-team" class="filter-select" aria-label="Filter by team">
+                <option value="">Team: Any</option>
+                {% for team in filter_teams %}
+                <option value="{{ team }}">{{ team }}</option>
+                {% endfor %}
+            </select>
+            <select id="filter-missing" class="filter-select" aria-label="Filter by readiness">
+                <option value="">Readiness: Any</option>
+                <option value="false">Ready</option>
+                <option value="true">Needs Inputs</option>
+            </select>
+            <button class="btn-pill ghost" type="button" id="filter-reset-btn">Reset</button>
         </div>
-
-        <!-- Row 2: Dropdowns -->
-        <div class="filter-dropdowns" id="filter-dropdowns">
-            <div class="filter-dropdown-group">
-                <label class="filter-dropdown-label" for="filter-section">Section</label>
-                <select id="filter-section" class="filter-select" aria-label="Filter by section">
-                    <option value="">All Sections</option>
-                    {% for sec in filter_sections %}
-                    <option value="{{ sec }}">{{ sec }}</option>
-                    {% endfor %}
-                </select>
-            </div>
-
-            <div class="filter-dropdown-group">
-                <label class="filter-dropdown-label" for="filter-status">Status</label>
-                <select id="filter-status" class="filter-select" aria-label="Filter by status">
-                    <option value="">All Statuses</option>
-                    {% for s in filter_statuses %}
-                    <option value="{{ s }}">{{ s|title }}</option>
-                    {% endfor %}
-                </select>
-            </div>
-
-            <div class="filter-dropdown-group">
-                <label class="filter-dropdown-label" for="filter-team">Agent / Team</label>
-                <select id="filter-team" class="filter-select" aria-label="Filter by team">
-                    <option value="">All Agents</option>
-                    {% for t in filter_teams %}
-                    <option value="{{ t }}">{{ t }}</option>
-                    {% endfor %}
-                </select>
-            </div>
-
-            <div class="filter-dropdown-group">
-                <label class="filter-dropdown-label" for="filter-missing">Missing Data</label>
-                <select id="filter-missing" class="filter-select" aria-label="Filter by missing data">
-                    <option value="">All</option>
-                    <option value="true">Missing Inputs</option>
-                    <option value="false">Complete</option>
-                </select>
-            </div>
-
-            <button class="filter-reset-btn" id="filter-reset-btn" title="Reset all filters">
-                Reset
-            </button>
-        </div>
-
-        <!-- Row 3: Active filter chips + result count -->
-        <div class="filter-status-row" id="filter-status-row" style="display:none;">
-            <div class="active-chips" id="active-chips"></div>
-            <span class="filter-result-count" id="filter-result-count"></span>
-        </div>
-
+        <div class="ops-result-count" id="filter-result-count">Showing <b>{{ tickets|length }}</b> of {{ display_total }} tickets</div>
     </section>
 
-    <!-- ================================================================ -->
-    <!-- STATE INDICATORS                                                 -->
-    <!-- ================================================================ -->
-    <!-- Loading -->
-    <div class="filter-loading" id="filter-loading" style="display:none;">
+    <div class="ops-state ops-state--loading" id="filter-loading" style="display:none;">
         <span class="loading-spinner"></span>
-        <span>Loading tickets…</span>
+        <span>Loading tickets...</span>
     </div>
 
-    <!-- API Error -->
-    <div class="filter-error" id="filter-error" style="display:none;">
-        <span class="filter-error-icon">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
-        </span>
+    <div class="ops-state ops-state--error" id="filter-error" style="display:none;">
         <span id="filter-error-msg">Could not load tickets.</span>
-        <button class="filter-btn" id="filter-retry-btn">Retry</button>
+        <button class="btn-pill ghost" type="button" id="filter-retry-btn">Retry</button>
     </div>
 
-    <!-- Empty State -->
-    <div class="filter-empty" id="filter-empty" style="display:none;">
-        <div class="filter-empty-icon">
-            <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="opacity: 0.4;"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
-        </div>
-        <div class="filter-empty-title">No tickets match your filters</div>
-        <div class="filter-empty-sub">Try adjusting your search or filter criteria.</div>
-        <button class="filter-reset-btn" id="filter-empty-reset-btn">Reset Filters</button>
+    <div class="ops-state ops-state--empty" id="filter-empty" style="display:none;">
+        <svg width="42" height="42" viewBox="0 0 24 24" fill="none" stroke="var(--gold-soft)" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><path d="m21 21-4.35-4.35"></path></svg>
+        <span>No tickets match the current filters.</span>
+        <button class="btn-pill primary" type="button" id="filter-empty-reset-btn">Reset</button>
     </div>
 
-    <!-- ================================================================ -->
-    <!-- TICKET TABLE                                                     -->
-    <!-- ================================================================ -->
-    <section class="ticket-table-section" id="ticket-list">
-        <div class="data-card">
-            <h2 class="section-title">
-                <span class="section-icon">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 7H4a2 2 0 0 0-2 2v2a2 2 0 0 1 0 4v2a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-2a2 2 0 0 1 0-4V9a2 2 0 0 0-2-2z"></path></svg>
-                </span>
-                Maintenance Tickets
-            </h2>
-            <div class="table-wrapper">
-                <table class="data-table" id="tickets-table">
-                    <thead>
-                        <tr>
-                            <th>Ticket ID</th>
-                            <th>Linked Alert</th>
-                            <th>Track Section</th>
-                            <th>Issue</th>
-                            <th>Team</th>
-                            <th>Priority</th>
-                            <th>Status</th>
-                            <th>ETA</th>
-                            <th>Readiness</th>
-                        </tr>
-                    </thead>
-                    <tbody id="tickets-tbody">
-                        {% for ticket in tickets %}
-                        <tr id="ticket-{{ ticket.id }}">
-                            <td class="td-mono">{{ ticket.id }}</td>
-                            <td class="td-mono" style="color: var(--accent-cyan);">{{ ticket.linked_alert }}</td>
-                            <td>
-                                <div class="cell-track">
-                                    <span class="track-section">{{ ticket.section }}</span>
-                                    <span class="track-id">{{ ticket.track_id }}</span>
-                                </div>
-                            </td>
-                            <td>{{ ticket.issue }}</td>
-                            <td>{{ ticket.team }}</td>
-                            <td>
-                                <span class="priority-badge priority-badge--{{ ticket.priority }}">
-                                    {{ ticket.priority|title }}
-                                </span>
-                            </td>
-                            <td>
-                                <span class="status-badge status-badge--{{ ticket.status }}">
-                                    {{ ticket.status|title }}
-                                </span>
-                            </td>
-                            <td class="td-mono">{{ ticket.eta }}</td>
-                            <td>
-                                {% if ticket.is_ready_for_ai %}
-                                <span class="readiness-badge readiness-badge--ready" title="All required inputs complete">
-                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--accent-green)" stroke-width="2.5"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>
-                                </span>
-                                {% else %}
-                                <span class="readiness-badge readiness-badge--missing" title="Missing required inputs">
-                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--accent-yellow)" stroke-width="2.5"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
-                                </span>
-                                {% endif %}
-                            </td>
-                        </tr>
-                        {% empty %}
-                        <tr><td colspan="9" class="empty-cell">No tickets matching the current filter.</td></tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
-            </div>
-        </div>
-    </section>
-
-    <!-- ================================================================ -->
-    <!-- TICKET DETAIL CARDS (mobile-friendly alternative view)           -->
-    <!-- ================================================================ -->
-    <section class="ticket-cards-section" id="ticket-cards">
+    <section class="ops-list" id="ticket-cards" aria-label="Tickets">
         {% for ticket in tickets %}
-        <div class="ticket-card ticket-card--{{ ticket.priority }}" id="tcard-{{ ticket.id }}">
-            <div class="ticket-card-header">
-                <span class="td-mono">{{ ticket.id }}</span>
-                <span class="priority-badge priority-badge--{{ ticket.priority }}">
-                    {{ ticket.priority|title }}
-                </span>
+        <article class="ops-list-card ticket-row ticket-row--{{ ticket.priority }}" id="ticket-{{ ticket.id }}">
+            <div class="ops-row-icon">
+                <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M20 7H4a2 2 0 0 0-2 2v2a2 2 0 0 1 0 4v2a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-2a2 2 0 0 1 0-4V9a2 2 0 0 0-2-2z"></path></svg>
             </div>
-            <h3 class="ticket-card-title">{{ ticket.issue }}</h3>
-            <div class="ticket-card-details">
-                <div class="ticket-card-detail">
-                    <span>Alert: <span style="color: var(--accent-cyan);" class="td-mono">{{ ticket.linked_alert }}</span></span>
+            <div class="ops-row-body">
+                <div class="ops-row-meta">
+                    <span class="priority-badge priority-badge--{{ ticket.priority }}">{{ ticket.priority_label }}</span>
+                    <span class="ops-code mono">{{ ticket.id }}</span>
+                    <span class="ops-code mono">{{ ticket.track_id }}</span>
+                    <span class="status-badge status-badge--{{ ticket.status }}">{{ ticket.status_label }}</span>
                 </div>
-                <div class="ticket-card-detail">
-                    <span>{{ ticket.section }}</span>
-                </div>
-                <div class="ticket-card-detail">
-                    <span>{{ ticket.team }}</span>
-                </div>
-                <div class="ticket-card-detail">
-                    <span>ETA: {{ ticket.eta }}</span>
-                </div>
+                <h2 class="ops-row-title">{{ ticket.issue }}</h2>
+                <p class="ops-row-copy">{{ ticket.section }} - {{ ticket.zone }} - {{ ticket.team }} - ETA {{ ticket.eta }}</p>
             </div>
-
-            <!-- Agent Task Source Checklist -->
-            {% if ticket.source_checklist %}
-            <div class="ticket-checklist">
-                <div class="checklist-header">
-                    <h4>Agent Source Checklist</h4>
-                    <span class="checklist-progress" id="progress-{{ ticket.id }}">
-                        {{ ticket.completion_percentage }}%
-                    </span>
-                </div>
-                <div class="progress-bar-container">
-                    <div class="progress-bar" id="bar-{{ ticket.id }}" {% if ticket %}style="width: {{ ticket.completion_percentage }}%;"{% endif %}></div>
-                </div>
-
-                <div class="checklist-items">
-                    {% for item in ticket.source_checklist %}
-                    <label class="checklist-item">
-                        <input type="checkbox"
-                               class="checklist-checkbox"
-                               data-ticket="{{ ticket.id }}"
-                               data-item="{{ item.name }}"
-                               {% if item.completed %}checked{% endif %}>
-                        <span class="item-name">{{ item.name }}</span>
-                        {% if item.required %}
-                        <span class="badge-required">*Required</span>
-                        {% endif %}
-                    </label>
-                    {% endfor %}
-                </div>
-
-                <div class="ai-readiness" id="readiness-{{ ticket.id }}">
-                    {% if ticket.is_ready_for_ai %}
-                    <span class="status-ready">Ready for AI Analysis</span>
-                    {% else %}
-                    <span class="status-pending">Missing Required Inputs</span>
-                    {% endif %}
-                </div>
+            <div class="ops-row-actions">
+                <span class="ops-row-time mono">{{ ticket.time_ago }}</span>
+                {% if ticket.is_ready_for_ai %}
+                <span class="readiness-badge readiness-badge--ready">Ready</span>
+                {% else %}
+                <span class="readiness-badge readiness-badge--missing">Needs inputs</span>
+                {% endif %}
             </div>
-            {% endif %}
-
-            <div class="ticket-card-footer">
-                <span class="status-badge status-badge--{{ ticket.status }}">
-                    {{ ticket.status|title }}
-                </span>
-            </div>
+        </article>
+        {% empty %}
+        <div class="card empty-state">
+            <p>No tickets matching the current filter.</p>
         </div>
         {% endfor %}
     </section>
 </div>
 
-{% csrf_token %}
-
-<!-- ================================================================ -->
-<!-- FILTER / SEARCH DATA (passed from Django to JS)                  -->
-<!-- ================================================================ -->
-<script id="rakshak-filter-data" type="application/json">
-{
-    "sections": {{ filter_sections|safe }},
-    "teams": {{ filter_teams|safe }},
-    "statuses": {{ filter_statuses|safe }}
-}
-</script>
-
 <script>
-/* =================================================================
- * Rakshak Ticket Search & Filter
- * Listens to search input + all four dropdowns.
- * Calls GET /tickets/api/search/ with combined params.
- * Replaces table tbody and cards section with fresh results.
- * ================================================================= */
 (function () {
-    'use strict';
+    "use strict";
 
-    // --- DOM refs ---
-    const searchInput   = document.getElementById('ticket-search');
-    const clearBtn      = document.getElementById('search-clear-btn');
-    const sectionSel    = document.getElementById('filter-section');
-    const statusSel     = document.getElementById('filter-status');
-    const teamSel       = document.getElementById('filter-team');
-    const missingSel    = document.getElementById('filter-missing');
-    const resetBtn      = document.getElementById('filter-reset-btn');
-    const emptyResetBtn = document.getElementById('filter-empty-reset-btn');
-    const retryBtn      = document.getElementById('filter-retry-btn');
+    const searchInput = document.getElementById("ticket-search");
+    const clearBtn = document.getElementById("search-clear-btn");
+    const sectionSel = document.getElementById("filter-section");
+    const statusSel = document.getElementById("filter-status");
+    const teamSel = document.getElementById("filter-team");
+    const missingSel = document.getElementById("filter-missing");
+    const resetBtn = document.getElementById("filter-reset-btn");
+    const emptyResetBtn = document.getElementById("filter-empty-reset-btn");
+    const retryBtn = document.getElementById("filter-retry-btn");
+    const cards = document.getElementById("ticket-cards");
+    const loading = document.getElementById("filter-loading");
+    const errorEl = document.getElementById("filter-error");
+    const errorMsg = document.getElementById("filter-error-msg");
+    const emptyEl = document.getElementById("filter-empty");
+    const resultCount = document.getElementById("filter-result-count");
 
-    const tbody         = document.getElementById('tickets-tbody');
-    const cardsSection  = document.getElementById('ticket-cards');
-    const loading       = document.getElementById('filter-loading');
-    const errorEl       = document.getElementById('filter-error');
-    const errorMsg      = document.getElementById('filter-error-msg');
-    const emptyEl       = document.getElementById('filter-empty');
-    const ticketList    = document.getElementById('ticket-list');
-    const statusRow     = document.getElementById('filter-status-row');
-    const chipsEl       = document.getElementById('active-chips');
-    const resultCount   = document.getElementById('filter-result-count');
+    if (!searchInput || !cards) return;
 
     let debounceTimer = null;
     let lastParams = {};
 
-    // --- Collect current filter state ---
+    function escapeHtml(value) {
+        return String(value ?? "")
+            .replace(/&/g, "&amp;")
+            .replace(/</g, "&lt;")
+            .replace(/>/g, "&gt;")
+            .replace(/"/g, "&quot;")
+            .replace(/'/g, "&#39;");
+    }
+
     function getParams() {
         return {
-            search:       searchInput.value.trim(),
-            section:      sectionSel.value,
-            status:       statusSel.value,
-            team:         teamSel.value,
+            search: searchInput.value.trim(),
+            section: sectionSel.value,
+            status: statusSel.value,
+            team: teamSel.value,
             missing_data: missingSel.value,
         };
     }
 
-    // --- Build query string ---
-    function buildQS(params) {
+    function buildQuery(params) {
         const qs = new URLSearchParams();
-        if (params.search)       qs.set('search',       params.search);
-        if (params.section)      qs.set('section',      params.section);
-        if (params.status)       qs.set('status',       params.status);
-        if (params.team)         qs.set('team',         params.team);
-        if (params.missing_data) qs.set('missing_data', params.missing_data);
+        Object.entries(params).forEach(([key, value]) => {
+            if (value) qs.set(key, value);
+        });
         return qs.toString();
     }
 
-    // --- Check if any filter is active ---
-    function hasActiveFilters(params) {
-        return !!(params.search || params.section || params.status ||
-                  params.team || params.missing_data);
-    }
+    function setState(state) {
+        loading.style.display = "none";
+        errorEl.style.display = "none";
+        emptyEl.style.display = "none";
+        cards.style.display = "";
 
-    // --- Show/hide state panels ---
-    function setUIState(state) {
-        loading.style.display     = 'none';
-        errorEl.style.display     = 'none';
-        emptyEl.style.display     = 'none';
-        ticketList.style.display  = '';
-        cardsSection.style.display = '';
-
-        if (state === 'loading') {
-            loading.style.display     = 'flex';
-            ticketList.style.display  = 'none';
-            cardsSection.style.display = 'none';
-        } else if (state === 'error') {
-            errorEl.style.display     = 'flex';
-            ticketList.style.display  = 'none';
-            cardsSection.style.display = 'none';
-        } else if (state === 'empty') {
-            emptyEl.style.display     = 'flex';
-            ticketList.style.display  = 'none';
-            cardsSection.style.display = 'none';
+        if (state === "loading") {
+            loading.style.display = "flex";
+            cards.style.display = "none";
+        } else if (state === "error") {
+            errorEl.style.display = "flex";
+            cards.style.display = "none";
+        } else if (state === "empty") {
+            emptyEl.style.display = "flex";
+            cards.style.display = "none";
         }
     }
 
-    // --- Render active filter chips ---
-    function renderChips(params) {
-        const chips = [];
-        const labels = {
-            search:       '',
-            section:      'Section',
-            status:       'Status',
-            team:         'Agent',
-            missing_data: 'Missing Data',
-        };
-        const valueLabels = {
-            missing_data: { true: 'Missing Inputs', false: 'Complete' }
-        };
-
-        if (hasActiveFilters(params)) {
-            statusRow.style.display = 'flex';
-            chipsEl.innerHTML = '';
-            Object.entries(params).forEach(([key, val]) => {
-                if (!val) return;
-                const display = valueLabels[key] ? (valueLabels[key][val] || val) : val;
-                const chip = document.createElement('span');
-                chip.className = 'filter-chip';
-                chip.innerHTML = `${labels[key]}: <strong>${escapeHtml(display)}</strong>
-                    <button class="chip-remove" data-key="${key}" title="Remove filter">✕</button>`;
-                chipsEl.appendChild(chip);
-            });
+    function renderCount(total, shown) {
+        const visible = Number(shown || 0);
+        const all = Number(total || 0);
+        if (visible && visible < all) {
+            resultCount.innerHTML = `Showing <b>${escapeHtml(visible)}</b> of ${escapeHtml(all)} tickets`;
         } else {
-            statusRow.style.display = 'none';
+            resultCount.innerHTML = `Showing <b>${escapeHtml(all)}</b> tickets`;
         }
     }
 
-    // --- Update result count badge ---
-    function renderCount(total, hasFilters) {
-        if (hasFilters) {
-            resultCount.textContent = `${total} result${total !== 1 ? 's' : ''}`;
-            resultCount.style.display = 'inline';
-        } else {
-            resultCount.style.display = 'none';
-        }
-    }
-
-    // --- Escape HTML for safe injection ---
-    function escapeHtml(str) {
-        return String(str)
-            .replace(/&/g, '&amp;')
-            .replace(/</g, '&lt;')
-            .replace(/>/g, '&gt;')
-            .replace(/"/g, '&quot;');
-    }
-
-    // --- Render table rows ---
-    function renderTableRows(tickets) {
-        if (!tickets.length) {
-            tbody.innerHTML = `<tr><td colspan="9" class="empty-cell">No tickets matching the current filter.</td></tr>`;
-            return;
-        }
-        tbody.innerHTML = tickets.map(t => {
-            const readiness = t.has_missing_data
-                ? `<span class="readiness-badge readiness-badge--missing" title="Missing required inputs"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--accent-yellow)" stroke-width="2.5"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg></span>`
-                : `<span class="readiness-badge readiness-badge--ready" title="All required inputs complete"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--accent-green)" stroke-width="2.5"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg></span>`;
-            return `
-            <tr id="ticket-${escapeHtml(t.id)}">
-                <td class="td-mono">${escapeHtml(t.id)}</td>
-                <td class="td-mono" style="color: var(--accent-cyan);">${escapeHtml(t.linked_alert)}</td>
-                <td>
-                    <div class="cell-track">
-                        <span class="track-section">${t.section}</span>
-                        <span class="track-id">${escapeHtml(t.track_id)}</span>
-                    </div>
-                </td>
-                <td>${t.issue}</td>
-                <td>${escapeHtml(t.team)}</td>
-                <td><span class="priority-badge priority-badge--${escapeHtml(t.priority)}">${escapeHtml(capitalize(t.priority))}</span></td>
-                <td><span class="status-badge status-badge--${escapeHtml(t.status)}">${escapeHtml(capitalize(t.status))}</span></td>
-                <td class="td-mono">${escapeHtml(t.eta)}</td>
-                <td>${readiness}</td>
-            </tr>`;
-        }).join('');
-    }
-
-    // --- Render ticket cards (mobile view) ---
-    function renderCards(tickets) {
-        if (!tickets.length) {
-            cardsSection.innerHTML = '';
-            return;
-        }
-        cardsSection.innerHTML = tickets.map(t => {
-            const checklistHtml = t.source_checklist && t.source_checklist.length ? `
-                <div class="ticket-checklist">
-                    <div class="checklist-header">
-                        <h4>Agent Source Checklist</h4>
-                        <span class="checklist-progress">${escapeHtml(String(t.completion_percentage))}%</span>
-                    </div>
-                    <div class="progress-bar-container">
-                        <div class="progress-bar" style="width:${escapeHtml(String(t.completion_percentage))}%;"></div>
-                    </div>
-                    <div class="checklist-items">
-                        ${t.source_checklist.map(item => `
-                        <label class="checklist-item">
-                            <input type="checkbox" class="checklist-checkbox"
-                                   data-ticket="${escapeHtml(t.id)}"
-                                   data-item="${escapeHtml(item.name)}"
-                                   ${item.completed ? 'checked' : ''} disabled>
-                            <span class="item-name">${escapeHtml(item.name)}</span>
-                            ${item.required ? '<span class="badge-required">*Required</span>' : ''}
-                        </label>`).join('')}
-                    </div>
-                    <div class="ai-readiness">
-                        ${t.is_ready_for_ai
-                            ? '<span class="status-ready">Ready for AI Analysis</span>'
-                            : '<span class="status-pending">Missing Required Inputs</span>'}
-                    </div>
-                </div>` : '';
+    function renderTickets(tickets) {
+        cards.innerHTML = tickets.map((ticket) => {
+            const ready = ticket.is_ready_for_ai
+                ? '<span class="readiness-badge readiness-badge--ready">Ready</span>'
+                : '<span class="readiness-badge readiness-badge--missing">Needs inputs</span>';
 
             return `
-            <div class="ticket-card ticket-card--${escapeHtml(t.priority)}" id="tcard-${escapeHtml(t.id)}">
-                <div class="ticket-card-header">
-                    <span class="td-mono">${escapeHtml(t.id)}</span>
-                    <span class="priority-badge priority-badge--${escapeHtml(t.priority)}">${escapeHtml(capitalize(t.priority))}</span>
-                </div>
-                <h3 class="ticket-card-title">${t.issue}</h3>
-                <div class="ticket-card-details">
-                    <div class="ticket-card-detail"><span>Alert: <span style="color:var(--accent-cyan);" class="td-mono">${escapeHtml(t.linked_alert)}</span></span></div>
-                    <div class="ticket-card-detail"><span>${t.section}</span></div>
-                    <div class="ticket-card-detail"><span>${escapeHtml(t.team)}</span></div>
-                    <div class="ticket-card-detail"><span>ETA: ${escapeHtml(t.eta)}</span></div>
-                </div>
-                ${checklistHtml}
-                <div class="ticket-card-footer">
-                    <span class="status-badge status-badge--${escapeHtml(t.status)}">${escapeHtml(capitalize(t.status))}</span>
-                </div>
-            </div>`;
-        }).join('');
+                <article class="ops-list-card ticket-row ticket-row--${escapeHtml(ticket.priority)}" id="ticket-${escapeHtml(ticket.id)}">
+                    <div class="ops-row-icon">
+                        <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M20 7H4a2 2 0 0 0-2 2v2a2 2 0 0 1 0 4v2a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-2a2 2 0 0 1 0-4V9a2 2 0 0 0-2-2z"></path></svg>
+                    </div>
+                    <div class="ops-row-body">
+                        <div class="ops-row-meta">
+                            <span class="priority-badge priority-badge--${escapeHtml(ticket.priority)}">${escapeHtml(ticket.priority_label)}</span>
+                            <span class="ops-code mono">${escapeHtml(ticket.id)}</span>
+                            <span class="ops-code mono">${escapeHtml(ticket.track_id)}</span>
+                            <span class="status-badge status-badge--${escapeHtml(ticket.status)}">${escapeHtml(ticket.status_label)}</span>
+                        </div>
+                        <h2 class="ops-row-title">${escapeHtml(ticket.issue)}</h2>
+                        <p class="ops-row-copy">${escapeHtml(ticket.section)} - ${escapeHtml(ticket.zone)} - ${escapeHtml(ticket.team)} - ETA ${escapeHtml(ticket.eta)}</p>
+                    </div>
+                    <div class="ops-row-actions">
+                        <span class="ops-row-time mono">${escapeHtml(ticket.time_ago)}</span>
+                        ${ready}
+                    </div>
+                </article>`;
+        }).join("");
     }
 
-    function capitalize(s) {
-        return s ? s.charAt(0).toUpperCase() + s.slice(1) : '';
-    }
-
-    // --- Main fetch function ---
     async function fetchTickets(params) {
         lastParams = params;
-        const qs = buildQS(params);
-        const url = `/tickets/api/search/${qs ? '?' + qs : ''}`;
-
-        setUIState('loading');
-        renderChips(params);
+        setState("loading");
 
         try {
-            const resp = await fetch(url, { credentials: 'same-origin' });
+            const query = buildQuery(params);
+            const response = await fetch(`/tickets/api/search/${query ? "?" + query : ""}`, {
+                credentials: "same-origin",
+            });
+            const data = await response.json().catch(() => ({}));
+            if (!response.ok) throw new Error(data.error || `HTTP ${response.status}`);
 
-            if (!resp.ok) {
-                const data = await resp.json().catch(() => ({}));
-                throw new Error(data.error || `HTTP ${resp.status}`);
-            }
-
-            const data = await resp.json();
-            const has = hasActiveFilters(params);
-
+            renderCount(data.total, data.shown || data.tickets.length);
             if (!data.tickets.length) {
-                setUIState('empty');
-            } else {
-                setUIState('results');
-                renderTableRows(data.tickets);
-                renderCards(data.tickets);
+                setState("empty");
+                cards.innerHTML = "";
+                return;
             }
 
-            renderCount(data.total, has);
-
-        } catch (err) {
-            setUIState('error');
-            errorMsg.textContent = `Could not load tickets: ${err.message}`;
-            console.error('[Rakshak] Ticket filter error:', err);
+            renderTickets(data.tickets);
+            setState("results");
+        } catch (error) {
+            errorMsg.textContent = `Could not load tickets: ${error.message}`;
+            setState("error");
         }
     }
 
-    // --- Debounced trigger ---
     function triggerFilter() {
-        clearTimeout(debounceTimer);
-        const params = getParams();
-        // Update clear button visibility
-        clearBtn.style.display = searchInput.value ? 'flex' : 'none';
-        debounceTimer = setTimeout(() => fetchTickets(params), 300);
+        window.clearTimeout(debounceTimer);
+        clearBtn.style.display = searchInput.value ? "grid" : "none";
+        debounceTimer = window.setTimeout(() => fetchTickets(getParams()), 240);
     }
 
-    // --- Reset all controls ---
     function resetFilters() {
-        searchInput.value = '';
-        sectionSel.value  = '';
-        statusSel.value   = '';
-        teamSel.value     = '';
-        missingSel.value  = '';
-        clearBtn.style.display = 'none';
-        statusRow.style.display = 'none';
-        chipsEl.innerHTML = '';
-        resultCount.style.display = 'none';
+        searchInput.value = "";
+        sectionSel.value = "";
+        statusSel.value = "";
+        teamSel.value = "";
+        missingSel.value = "";
+        clearBtn.style.display = "none";
         fetchTickets({});
     }
 
-    // --- Remove individual chip filter ---
-    chipsEl.addEventListener('click', function (e) {
-        const btn = e.target.closest('.chip-remove');
-        if (!btn) return;
-        const key = btn.dataset.key;
-        if (key === 'search')       searchInput.value = '';
-        if (key === 'section')      sectionSel.value  = '';
-        if (key === 'status')       statusSel.value   = '';
-        if (key === 'team')         teamSel.value     = '';
-        if (key === 'missing_data') missingSel.value  = '';
+    searchInput.addEventListener("input", triggerFilter);
+    sectionSel.addEventListener("change", triggerFilter);
+    statusSel.addEventListener("change", triggerFilter);
+    teamSel.addEventListener("change", triggerFilter);
+    missingSel.addEventListener("change", triggerFilter);
+    clearBtn.addEventListener("click", () => {
+        searchInput.value = "";
         triggerFilter();
     });
-
-    // --- Bind events ---
-    searchInput.addEventListener('input',  triggerFilter);
-    sectionSel .addEventListener('change', triggerFilter);
-    statusSel  .addEventListener('change', triggerFilter);
-    teamSel    .addEventListener('change', triggerFilter);
-    missingSel .addEventListener('change', triggerFilter);
-
-    clearBtn      .addEventListener('click', () => { searchInput.value = ''; clearBtn.style.display = 'none'; triggerFilter(); });
-    resetBtn      .addEventListener('click', resetFilters);
-    emptyResetBtn .addEventListener('click', resetFilters);
-    retryBtn      .addEventListener('click', () => fetchTickets(lastParams));
-
-    // --- Checklist checkbox handler (for server-rendered initial view) ---
-    const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]')?.value || '';
-
-    document.addEventListener('change', function (e) {
-        const box = e.target;
-        if (!box.classList.contains('checklist-checkbox') || box.disabled) return;
-
-        const ticketId  = box.dataset.ticket;
-        const itemName  = box.dataset.item;
-        const completed = box.checked;
-
-        fetch(`/tickets/api/${ticketId}/update_checklist/`, {
-            method:  'POST',
-            headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken },
-            body:    JSON.stringify({ name: itemName, completed }),
-        })
-        .then(r => r.json())
-        .then(data => {
-            if (data.success) {
-                const prog = document.getElementById(`progress-${ticketId}`);
-                const bar  = document.getElementById(`bar-${ticketId}`);
-                if (prog) prog.textContent = `${data.completion_percentage}%`;
-                if (bar)  bar.style.width  = `${data.completion_percentage}%`;
-                const readDiv = document.getElementById(`readiness-${ticketId}`);
-                if (readDiv) {
-                    readDiv.innerHTML = data.is_ready_for_ai
-                        ? '<span class="status-ready">Ready for AI Analysis</span>'
-                        : '<span class="status-pending">Missing Required Inputs</span>';
-                }
-            } else {
-                alert('Failed to update checklist: ' + data.error);
-                box.checked = !completed;
-            }
-        })
-        .catch(() => { box.checked = !completed; });
-    });
-
+    resetBtn.addEventListener("click", resetFilters);
+    emptyResetBtn.addEventListener("click", resetFilters);
+    retryBtn.addEventListener("click", () => fetchTickets(lastParams));
 })();
 </script>
-
-<style>
-/* ================================================================
- * Search & Filter styles — using existing design tokens
- * ================================================================ */
-
-/* Search row */
-.search-row {
-    margin-bottom: var(--space-md);
-}
-.search-input-wrapper {
-    display: flex;
-    align-items: center;
-    background: var(--bg-input);
-    border: 1px solid var(--border-primary);
-    border-radius: var(--radius-lg);
-    padding: 0 var(--space-md);
-    transition: border-color var(--transition-fast);
-    gap: var(--space-sm);
-}
-.search-input-wrapper:focus-within {
-    border-color: var(--accent-cyan);
-    box-shadow: 0 0 0 2px rgba(6, 182, 212, 0.15);
-}
-.search-icon {
-    font-size: 0.9rem;
-    color: var(--text-muted);
-    flex-shrink: 0;
-}
-.search-input {
-    flex: 1;
-    background: transparent;
-    border: none;
-    outline: none;
-    color: var(--text-primary);
-    font-size: 0.88rem;
-    font-family: inherit;
-    padding: 10px 0;
-}
-.search-input::placeholder {
-    color: var(--text-muted);
-}
-.search-clear-btn {
-    display: none;
-    background: none;
-    border: none;
-    color: var(--text-muted);
-    cursor: pointer;
-    font-size: 0.8rem;
-    padding: 4px;
-    border-radius: 50%;
-    width: 20px;
-    height: 20px;
-    align-items: center;
-    justify-content: center;
-    transition: color var(--transition-fast), background var(--transition-fast);
-}
-.search-clear-btn:hover {
-    color: var(--text-primary);
-    background: var(--bg-card-hover);
-}
-
-/* Dropdown row */
-.filter-dropdowns {
-    display: flex;
-    flex-wrap: wrap;
-    gap: var(--space-sm);
-    align-items: flex-end;
-}
-.filter-dropdown-group {
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
-    flex: 1;
-    min-width: 140px;
-    max-width: 240px;
-}
-.filter-dropdown-label {
-    font-size: 0.72rem;
-    font-weight: 500;
-    color: var(--text-muted);
-    letter-spacing: 0.4px;
-    text-transform: uppercase;
-}
-.filter-select {
-    background: var(--bg-input);
-    border: 1px solid var(--border-primary);
-    border-radius: var(--radius-md);
-    color: var(--text-primary);
-    font-size: 0.82rem;
-    font-family: inherit;
-    padding: 7px 10px;
-    cursor: pointer;
-    transition: border-color var(--transition-fast);
-    appearance: none;
-    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%23666'/%3E%3C/svg%3E");
-    background-repeat: no-repeat;
-    background-position: right 10px center;
-    padding-right: 28px;
-}
-.filter-select:focus {
-    outline: none;
-    border-color: var(--accent-cyan);
-    box-shadow: 0 0 0 2px rgba(6, 182, 212, 0.15);
-}
-.filter-select option {
-    background: var(--bg-card);
-    color: var(--text-primary);
-}
-
-/* Reset button */
-.filter-reset-btn {
-    padding: 8px 18px;
-    border-radius: var(--radius-md);
-    background: var(--bg-input);
-    border: 1px solid var(--border-primary);
-    color: var(--text-secondary);
-    font-size: 0.82rem;
-    font-weight: 500;
-    cursor: pointer;
-    transition: all var(--transition-fast);
-    white-space: nowrap;
-    align-self: flex-end;
-    font-family: inherit;
-}
-.filter-reset-btn:hover {
-    color: var(--accent-cyan);
-    border-color: var(--accent-cyan);
-    background: rgba(6, 182, 212, 0.08);
-}
-
-/* Active filter chips row */
-.filter-status-row {
-    display: flex;
-    align-items: center;
-    gap: var(--space-sm);
-    flex-wrap: wrap;
-    margin-top: var(--space-sm);
-    padding-top: var(--space-sm);
-    border-top: 1px solid var(--border-primary);
-}
-.active-chips {
-    display: flex;
-    flex-wrap: wrap;
-    gap: var(--space-xs);
-    flex: 1;
-}
-.filter-chip {
-    display: inline-flex;
-    align-items: center;
-    gap: 4px;
-    background: rgba(6, 182, 212, 0.1);
-    border: 1px solid rgba(6, 182, 212, 0.3);
-    color: var(--accent-cyan);
-    border-radius: 20px;
-    padding: 3px 10px 3px 10px;
-    font-size: 0.75rem;
-}
-.chip-remove {
-    background: none;
-    border: none;
-    color: var(--accent-cyan);
-    cursor: pointer;
-    font-size: 0.7rem;
-    padding: 0 2px;
-    opacity: 0.7;
-    transition: opacity var(--transition-fast);
-}
-.chip-remove:hover { opacity: 1; }
-.filter-result-count {
-    font-size: 0.78rem;
-    font-weight: 600;
-    color: var(--text-muted);
-    white-space: nowrap;
-}
-
-/* Loading state */
-.filter-loading {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: var(--space-sm);
-    padding: var(--space-2xl);
-    color: var(--text-muted);
-    font-size: 0.88rem;
-}
-.loading-spinner {
-    width: 18px;
-    height: 18px;
-    border: 2px solid var(--border-primary);
-    border-top-color: var(--accent-cyan);
-    border-radius: 50%;
-    animation: spin 0.7s linear infinite;
-    display: inline-block;
-}
-@keyframes spin { to { transform: rotate(360deg); } }
-
-/* Error state */
-.filter-error {
-    display: flex;
-    align-items: center;
-    gap: var(--space-sm);
-    padding: var(--space-lg) var(--space-xl);
-    background: rgba(239, 68, 68, 0.05);
-    border: 1px solid rgba(239, 68, 68, 0.2);
-    border-radius: var(--radius-lg);
-    color: var(--accent-red);
-    font-size: 0.88rem;
-    margin: var(--space-md) 0;
-}
-.filter-error-icon { font-size: 1.2rem; }
-
-/* Empty state */
-.filter-empty {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    gap: var(--space-sm);
-    padding: var(--space-2xl);
-    text-align: center;
-}
-.filter-empty-icon {
-    font-size: 2.5rem;
-    opacity: 0.4;
-    margin-bottom: var(--space-sm);
-}
-.filter-empty-title {
-    font-size: 1rem;
-    font-weight: 600;
-    color: var(--text-secondary);
-}
-.filter-empty-sub {
-    font-size: 0.82rem;
-    color: var(--text-muted);
-    margin-bottom: var(--space-sm);
-}
-
-/* Search highlight */
-mark.search-highlight {
-    background: rgba(245, 158, 11, 0.3);
-    color: var(--accent-yellow);
-    border-radius: 2px;
-    padding: 0 2px;
-}
-
-/* Readiness badge (table column) */
-.readiness-badge {
-    font-size: 1rem;
-    cursor: default;
-}
-.readiness-badge--missing { color: var(--accent-yellow); }
-.readiness-badge--ready   { color: var(--accent-green);  }
-
-/* Checklist styles (unchanged from original) */
-.ticket-checklist {
-    margin-top: 15px;
-    padding: 10px;
-    background: var(--bg-secondary);
-    border-radius: 8px;
-    border: 1px solid var(--border-primary);
-}
-.checklist-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 5px;
-}
-.checklist-header h4 {
-    margin: 0;
-    font-size: 0.9em;
-    color: var(--text-primary);
-}
-.checklist-progress {
-    font-size: 0.85em;
-    font-weight: bold;
-    color: var(--accent-cyan);
-}
-.progress-bar-container {
-    height: 6px;
-    background: var(--bg-primary);
-    border-radius: 3px;
-    margin-bottom: 10px;
-    overflow: hidden;
-}
-.progress-bar {
-    height: 100%;
-    background: var(--accent-cyan);
-    transition: width 0.3s ease;
-}
-.checklist-items {
-    display: flex;
-    flex-direction: column;
-    gap: 6px;
-    margin-bottom: 10px;
-}
-.checklist-item {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    font-size: 0.85em;
-    cursor: pointer;
-}
-.badge-required {
-    font-size: 0.7em;
-    background: var(--accent-red);
-    color: white;
-    padding: 2px 4px;
-    border-radius: 4px;
-}
-.ai-readiness { font-size: 0.85em; font-weight: 500; }
-.status-ready  { color: var(--accent-green); }
-.status-pending { color: var(--accent-yellow); }
-</style>
 {% endblock %}
