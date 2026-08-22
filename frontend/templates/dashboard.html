@@ -92,8 +92,6 @@
             <div class="empty-inline">No active critical or warning alerts.</div>
             {% endfor %}
         </div>
-    </div>
-</div>
 
 <div class="card">
     <div class="card-header">
@@ -137,21 +135,32 @@
                 <div class="track-cell hd">Trains/d</div>
                 <div class="track-cell hd">Due</div>
             </div>
-            {% for track in track_sections %}
-            <div class="track-row">
-                <div class="track-cell id">{{ track.id }}</div>
-                <div class="track-cell">{{ track.section }}</div>
-                <div class="track-cell">
-                    <div class="health-cell">
-                        <span class="health-pct">{{ track.health }}%</span>
-                        <div class="health-bar">
-                            <div class="health-fill {% if track.health >= 80 %}good{% elif track.health >= 60 %}warn{% else %}crit{% endif %}" style="width: {{ track.health }}%"></div>
+            <div class="track-table-wrap">
+                <div class="track-row track-head">
+                    <div class="track-cell hd">Track ID</div>
+                    <div class="track-cell hd">Section</div>
+                    <div class="track-cell hd">Health</div>
+                    <div class="track-cell hd">Status</div>
+                    <div class="track-cell hd">Trains/d</div>
+                    <div class="track-cell hd">Due</div>
+                </div>
+                {% for track in track_sections %}
+                <div class="track-row">
+                    <div class="track-cell id">{{ track.id }}</div>
+                    <div class="track-cell">{{ track.section }}</div>
+                    <div class="track-cell">
+                        <div class="health-cell">
+                            <span class="health-pct">{{ track.health }}%</span>
+                            <div class="health-bar">
+                                <div class="health-fill {% if track.health >= 80 %}good{% elif track.health >= 60 %}warn{% else %}crit{% endif %}" style="width: {{ track.health }}%"></div>
+                            </div>
                         </div>
                     </div>
+                    <div class="track-cell"><span class="status-badge {% if track.health >= 80 %}good{% elif track.health >= 60 %}warn{% else %}crit{% endif %}">{{ track.status|upper }}</span></div>
+                    <div class="track-cell mono num">{{ track.trains_daily }}</div>
+                    <div class="track-cell">{{ track.maintenance_due }}</div>
                 </div>
-                <div class="track-cell"><span class="status-badge {% if track.health >= 80 %}good{% elif track.health >= 60 %}warn{% else %}crit{% endif %}">{{ track.status|upper }}</span></div>
-                <div class="track-cell mono num">{{ track.trains_daily }}</div>
-                <div class="track-cell">{{ track.maintenance_due }}</div>
+                {% endfor %}
             </div>
             {% empty %}
             <div class="empty-inline">No track sections available.</div>

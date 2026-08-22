@@ -14,7 +14,7 @@ function initLiveClock() {
     const clockTime = document.getElementById('clock-time');
     const clockDate = document.getElementById('clock-date');
 
-    if (!clockTime || !clockDate) return;
+    if (!clockTime) return;
 
     function updateClock() {
         const now = new Date();
@@ -442,18 +442,6 @@ function isDarkMode() {
 window.addEventListener('themeChanged', function(e) {
     const isDark = e.detail.theme === 'dark';
     
-    // Update map tile layers
-    if (window.rakshakMap) {
-        if (isDark) {
-            window.rakshakMap.map.removeLayer(window.rakshakMap.lightLayer);
-            window.rakshakMap.map.addLayer(window.rakshakMap.darkLayer);
-        } else {
-            window.rakshakMap.map.removeLayer(window.rakshakMap.darkLayer);
-            window.rakshakMap.map.addLayer(window.rakshakMap.lightLayer);
-        }
-        window.rakshakMap.map.invalidateSize();
-    }
-    
     // Update Chart.js instances
     var trendsEl = document.getElementById('sensor-trends-data');
     if (trendsEl && window.rakshakChartInstances) {
@@ -502,11 +490,7 @@ function initSidebar() {
                     if(chart && typeof chart.resize === 'function') chart.resize();
                 });
             }
-            // Explicit Leaflet Map resize
-            if (window.rakshakMap && window.rakshakMap.map) {
-                window.rakshakMap.map.invalidateSize();
-            }
-        }, 300); 
+        }, 260); 
     });
 }
 

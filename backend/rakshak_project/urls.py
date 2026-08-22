@@ -23,9 +23,12 @@ urlpatterns = [
     path('alerts/', include('alerts.urls')),
     path('tickets/', include('tickets.urls')),
     path('map/', include('map_view.urls')),
+    path('readiness/', include('readiness.urls')),
     path('simulation/', include('simulation.urls')),
+    path('patrol/', include('patrol.urls')),
     path('api/', include('map_view.api_urls')),
     path('api/predict/', include('sensors.api_urls')),
     path('api/ai/', include('ai_integration.api_urls')),
     path('api/simulation/', include('simulation.api_urls')),
+    path('api/patrol/', include('patrol.api_urls')),
 ]
