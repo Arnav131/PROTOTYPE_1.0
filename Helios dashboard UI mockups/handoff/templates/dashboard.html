@@ -265,24 +265,5 @@
     </div>
 </div>
 
-<!-- Chart Expansion Modal (re-added from original dashboard.html) -->
-<div class="chart-modal-backdrop" id="chart-modal" style="display: none;">
-    <div class="chart-modal-container">
-        <div style="display:flex; justify-content:space-between; margin-bottom:20px;">
-            <h2 id="modal-chart-title" style="margin:0; font-size:16px;">Chart Title</h2>
-            <button id="btn-close-modal" aria-label="Close chart" style="background:transparent; border:none; color:var(--text-secondary); cursor:pointer;">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6L6 18"></path><path d="M6 6l12 12"></path></svg>
-            </button>
-        </div>
-        <div style="height:300px; position:relative; margin-bottom:20px;">
-            <canvas id="modal-chart-canvas"></canvas>
-        </div>
-        <div style="display:flex; justify-content:space-between; color:var(--text-secondary); font-size:12px;">
-            <span>Max <b id="modal-stat-max" style="color:#fff;">--</b></span>
-            <span>Min <b id="modal-stat-min" style="color:#fff;">--</b></span>
-        </div>
-    </div>
-</div>
-
 {{ sensor_trends_json|json_script:"sensor-trends-data" }}
 {% endblock %}
