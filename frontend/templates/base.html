@@ -80,9 +80,12 @@
                         <div style="font-size:12.5px;font-weight:600;">{{ request.user.username }}</div>
                         <div style="font-size:10.5px;color:var(--text-tertiary);">{% if is_controller %}Controller{% elif is_patrol_worker %}Patrol Worker{% else %}Read-Only{% endif %}</div>
                     </div>
-                    <a class="sidebar-nav-item" style="padding:6px;border-radius:8px;" href="{% url 'logout' %}" title="Logout" aria-label="Logout">
-                        <span class="nav-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg></span>
-                    </a>
+                    <form method="post" action="{% url 'logout' %}" style="display:inline;margin:0;padding:0;">
+                        {% csrf_token %}
+                        <button type="submit" class="sidebar-nav-item" style="padding:6px;border-radius:8px;background:none;border:none;cursor:pointer;color:inherit;display:inline-flex;align-items:center;justify-content:center;" title="Logout" aria-label="Logout">
+                            <span class="nav-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg></span>
+                        </button>
+                    </form>
                 </div>
                 {% endif %}
             </div>

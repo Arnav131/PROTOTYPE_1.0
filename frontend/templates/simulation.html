@@ -25,14 +25,27 @@
     <div class="sim-setup" id="sim-setup">
         <div class="sim-field">
             <label for="sim-source">Source Station</label>
-            <input type="text" id="sim-source" placeholder="e.g. New Delhi" autocomplete="off">
+            <input type="text" id="sim-source" placeholder="e.g. New Delhi" autocomplete="off" list="sim-station-list">
         </div>
         <div class="sim-field">
             <label for="sim-destination">Destination Station</label>
-            <input type="text" id="sim-destination" placeholder="e.g. Mumbai Central" autocomplete="off">
+            <input type="text" id="sim-destination" placeholder="e.g. Mumbai Central" autocomplete="off" list="sim-station-list">
         </div>
         <button class="sim-start-btn" id="sim-start-btn">🚆 Let Our Journey Begin</button>
         <div class="sim-error" id="sim-error"></div>
+    </div>
+
+    <datalist id="sim-station-list"></datalist>
+
+    <!-- ============================================================= -->
+    <!-- ROUTE MAP — real track path between selected stations         -->
+    <!-- ============================================================= -->
+    <div class="sim-route-panel" id="sim-route-panel">
+        <div class="sim-route-header">
+            <span class="sim-route-title">Route Preview</span>
+            <span class="sim-route-meta" id="sim-route-meta"></span>
+        </div>
+        <div class="sim-route-map" id="sim-route-map"></div>
     </div>
 
     <!-- ============================================================= -->
@@ -98,7 +111,7 @@
         <div class="sim-suggestions" id="sim-suggestions"></div>
 
         <div class="sim-actions-group">
-            <a href="/readiness/?case=OPR-DEP-12951" class="sim-proceed-btn" id="sim-readiness-btn">
+            <a href="/readiness/" class="sim-proceed-btn" id="sim-readiness-btn">
                 🚀 Proceed to Train Departure Readiness Clearance &rarr;
             </a>
             <button class="sim-reset-btn" id="sim-reset-btn">Run Another Journey</button>
@@ -110,5 +123,5 @@
 
 {% block extra_scripts %}
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
-<script src="{% static 'js/simulation.js' %}?v=1"></script>
+<script src="{% static 'js/simulation.js' %}?v=2"></script>
 {% endblock %}

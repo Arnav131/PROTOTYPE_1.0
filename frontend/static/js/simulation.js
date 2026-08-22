@@ -25,6 +25,115 @@
                                     // even if the backend responds faster — keeps the
                                     // demo feeling like a real journey, not an instant API call
 
+    // --- Real stations + route preview -----------------------------------
+    var stationsByName = {};       // "New Delhi (NDLS)" -> {code,name,lat,lng}
+    var routeMap = null;           // Leaflet map (created lazily)
+    var routeLine = null;
+    var stopMarkers = [];
+
+    loadStations();
+
+    function loadStations() {
+        fetch('/api/simulation/stations/')
+            .then(function (res) { return res.json(); })
+            .then(function (data) {
+                if (!data || !data.success) return;
+                var datalist = document.getElementById('sim-station-list');
+                if (!datalist) return;
+                data.stations.forEach(function (s) {
+                    var label = s.name + ' (' + s.code + ')';
+                    stationsByName[label] = s;
+                    var opt = document.createElement('option');
+                    opt.value = label;
+                    datalist.appendChild(opt);
+                });
+                document.getElementById('sim-source').placeholder = 'e.g. ' + data.stations[0].name;
+                document.getElementById('sim-destination').addEventListener('input', maybeDrawRoute);
+                document.getElementById('sim-source').addEventListener('input', maybeDrawRoute);
+            })
+            .catch(function () { /* datalist stays empty; free-text still works */ });
+    }
+
+    function resolveStation(inputId) {
+        var raw = document.getElementById(inputId).value.trim();
+        return stationsByName[raw] || null;
+    }
+
+    function maybeDrawRoute() {
+        var src = resolveStation('sim-source');
+        var dst = resolveStation('sim-destination');
+        if (!src || !dst || src.code === dst.code) {
+            setRouteMeta('');
+            return;
+        }
+        fetch('/api/simulation/route/?from=' + encodeURIComponent(src.code) +
+              '&to=' + encodeURIComponent(dst.code))
+            .then(function (res) { return res.json(); })
+            .then(function (data) {
+                if (!data || !data.success) {
+                    setRouteMeta((data && data.error) || 'No route found');
+                    clearRouteLayers();
+                    return;
+                }
+                drawRoute(data);
+            })
+            .catch(function () { setRouteMeta('Route lookup failed'); });
+    }
+
+    function ensureMap() {
+        var container = document.getElementById('sim-route-map');
+        if (routeMap) return routeMap;
+
+        routeMap = L.map(container, { scrollWheelZoom: false }).setView([22.5, 79], 5);
+        L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
+            attribution: '&copy; OpenStreetMap contributors &copy; CARTO',
+            subdomains: 'abcd',
+            maxZoom: 19,
+        }).addTo(routeMap);
+        return routeMap;
+    }
+
+    function clearRouteLayers() {
+        if (!routeMap) return;
+        if (routeLine) { routeMap.removeLayer(routeLine); routeLine = null; }
+        stopMarkers.forEach(function (m) { routeMap.removeLayer(m); });
+        stopMarkers = [];
+    }
+
+    function drawRoute(data) {
+        var map = ensureMap();
+        clearRouteLayers();
+
+        routeLine = L.polyline(data.waypoints, {
+            color: '#38bdf8',
+            weight: 4,
+            opacity: 0.9,
+        }).addTo(map);
+
+        data.stations.forEach(function (s, i) {
+            var isEnd = i === 0 || i === data.stations.length - 1;
+            var marker = L.circleMarker([s.lat, s.lng], {
+                radius: isEnd ? 7 : 3,
+                color: isEnd ? '#f59e0b' : '#38bdf8',
+                fillColor: isEnd ? '#f59e0b' : '#38bdf8',
+                fillOpacity: 0.9,
+            }).addTo(map);
+            marker.bindTooltip(s.name + ' (' + s.code + ')');
+            stopMarkers.push(marker);
+        });
+
+        map.fitBounds(routeLine.getBounds(), { padding: [30, 30] });
+        setRouteMeta(
+            data.from + ' → ' + data.to + ' · ' + data.total_distance_km + ' km · ' +
+            data.stops_count + ' stations'
+        );
+    }
+
+    function setRouteMeta(text) {
+        var el = document.getElementById('sim-route-meta');
+        if (el) el.textContent = text;
+    }
+
     var LOG_LINES = [
         { text: '> Initializing onboard sensor array...', cls: 'sim-log-line--dim' },
         { text: '> Establishing telemetry link...', cls: '' },
@@ -52,8 +161,10 @@
     }
 
     function startSimulation() {
-        var source = document.getElementById('sim-source').value.trim();
-        var destination = document.getElementById('sim-destination').value.trim();
+        var srcStation = resolveStation('sim-source');
+        var dstStation = resolveStation('sim-destination');
+        var source = srcStation ? srcStation.name : document.getElementById('sim-source').value.trim();
+        var destination = dstStation ? dstStation.name : document.getElementById('sim-destination').value.trim();
         errorEl.textContent = '';
 
         if (!source || !destination) {
@@ -259,6 +370,7 @@
         document.getElementById('sim-source').value = '';
         document.getElementById('sim-destination').value = '';
         errorEl.textContent = '';
+        setRouteMeta('');
         if (animationTimer) clearTimeout(animationTimer);
     }
 })();

@@ -15,9 +15,12 @@ Routes:
 """
 from django.contrib import admin
 from django.urls import path, include
+from core.views import custom_logout_view
 
 urlpatterns = [
     path('admin/', admin.site.urls),
+    path('accounts/logout/', custom_logout_view, name='logout'),
+    path('logout/', custom_logout_view, name='direct_logout'),
     path('accounts/', include('django.contrib.auth.urls')),
     path('', include('sensors.urls')),
     path('alerts/', include('alerts.urls')),

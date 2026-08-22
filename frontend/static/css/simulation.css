@@ -349,3 +349,46 @@
     box-shadow: 0 0 12px rgba(6, 214, 160, 0.06);
 }
 
+
+/* ---------------- Route preview map ---------------- */
+.sim-route-panel {
+    margin-top: 20px;
+    background: var(--bg-surface);
+    backdrop-filter: var(--glass-blur);
+    -webkit-backdrop-filter: var(--glass-blur);
+    border: 1px solid var(--glass-border);
+    border-radius: var(--radius);
+    box-shadow: var(--glass-shadow);
+    overflow: hidden;
+}
+.sim-route-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px 16px 0;
+}
+.sim-route-title {
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+}
+.sim-route-meta {
+    font-size: 0.8rem;
+    color: var(--accent-primary);
+}
+.sim-route-map {
+    height: 320px;
+    width: 100%;
+}
+.sim-route-map--empty::after {
+    content: "Select a source and destination to preview the route";
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--text-secondary);
+    font-size: 0.85rem;
+    pointer-events: none;
+}
