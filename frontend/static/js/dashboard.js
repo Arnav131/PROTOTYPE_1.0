@@ -95,15 +95,15 @@ function getChartDefaults() {
         plugins: {
             legend: { display: false },
             tooltip: {
-                backgroundColor: 'rgba(12, 15, 25, 0.92)',
-                titleColor: '#f0f2f5',
-                bodyColor: '#94a3b8',
-                borderColor: 'rgba(6, 214, 160, 0.15)',
+                backgroundColor: 'rgba(36, 27, 44, 0.94)',
+                titleColor: '#f5f3f7',
+                bodyColor: '#a89db0',
+                borderColor: 'rgba(240, 168, 200, 0.16)',
                 borderWidth: 1,
                 padding: 14,
                 cornerRadius: 10,
-                titleFont: { family: 'Inter', weight: '600', size: 13 },
-                bodyFont: { family: 'JetBrains Mono', size: 12 },
+                titleFont: { family: 'Sora', weight: '600', size: 13 },
+                bodyFont: { family: 'IBM Plex Mono', size: 12 },
                 boxPadding: 4,
                 usePointStyle: true,
             },
@@ -111,22 +111,22 @@ function getChartDefaults() {
         scales: {
             x: {
                 grid: {
-                    color: 'rgba(255,255,255,0.03)',
+                    color: 'rgba(255,255,255,0.05)',
                     drawBorder: false,
                 },
                 ticks: {
-                    color: '#475569',
-                    font: { family: 'JetBrains Mono', size: 10 },
+                    color: '#6f6579',
+                    font: { family: 'IBM Plex Mono', size: 10 },
                 },
             },
             y: {
                 grid: {
-                    color: 'rgba(255,255,255,0.03)',
+                    color: 'rgba(255,255,255,0.05)',
                     drawBorder: false,
                 },
                 ticks: {
-                    color: '#475569',
-                    font: { family: 'JetBrains Mono', size: 10 },
+                    color: '#6f6579',
+                    font: { family: 'IBM Plex Mono', size: 10 },
                 },
             },
         },
@@ -141,15 +141,15 @@ function getCompactChartDefaults() {
         plugins: {
             legend: { display: false },
             tooltip: {
-                backgroundColor: 'rgba(12, 15, 25, 0.92)',
-                titleColor: '#f0f2f5',
-                bodyColor: '#94a3b8',
-                borderColor: 'rgba(6, 214, 160, 0.15)',
+                backgroundColor: 'rgba(36, 27, 44, 0.94)',
+                titleColor: '#f5f3f7',
+                bodyColor: '#a89db0',
+                borderColor: 'rgba(240, 168, 200, 0.16)',
                 borderWidth: 1,
                 padding: 10,
-                cornerRadius: 8,
-                titleFont: { family: 'Inter', size: 11, weight: '600' },
-                bodyFont: { family: 'JetBrains Mono', size: 10 },
+                cornerRadius: 10,
+                titleFont: { family: 'Sora', size: 11, weight: '600' },
+                bodyFont: { family: 'IBM Plex Mono', size: 10 },
                 boxPadding: 3,
                 usePointStyle: true,
             },
@@ -159,8 +159,8 @@ function getCompactChartDefaults() {
                 display: false,
             },
             y: {
-                grid: { color: 'rgba(255,255,255,0.03)', drawBorder: false },
-                ticks: { color: '#475569', font: { family: 'JetBrains Mono', size: 9 }, maxTicksLimit: 4 },
+                grid: { color: 'rgba(255,255,255,0.05)', drawBorder: false },
+                ticks: { color: '#6f6579', font: { family: 'IBM Plex Mono', size: 9 }, maxTicksLimit: 4 },
             },
         },
     };
@@ -184,7 +184,7 @@ function createGradient(ctx, colorTop, colorBottom) {
 window.rakshakChartInstances = window.rakshakChartInstances || {};
 
 function getChartColorConfig(type, values) {
-    if (!values || values.length === 0) return { main: '#06d6a0', bg: 'rgba(6,214,160,0.15)', status: 'healthy' };
+    if (!values || values.length === 0) return { main: '#e79bd0', bg: 'rgba(224,92,154,0.22)', status: 'healthy' };
     const lastValue = values[values.length - 1];
     let status = 'healthy';
     
@@ -208,9 +208,7 @@ function getChartColorConfig(type, values) {
         else if (lastValue >= 1.2) status = 'warning';
     }
 
-    if (status === 'critical') return { main: '#ef4444', bg: 'rgba(239,68,68,0.12)', status: 'critical' };
-    if (status === 'warning') return { main: '#f59e0b', bg: 'rgba(245,158,11,0.12)', status: 'warning' };
-    return { main: '#06d6a0', bg: 'rgba(6,214,160,0.12)', status: 'healthy' };
+    return { main: '#e79bd0', bg: 'rgba(224,92,154,0.24)', status: status };
 }
 
 /**
@@ -271,6 +269,42 @@ function generateDataInsight(type, values) {
 /**
  * Update the data-insight box in the DOM for a chart.
  */
+function generateDataInsight(type, values) {
+    if (!values || values.length < 2) return { text: 'Collecting data...', level: 'info' };
+
+    const last = values[values.length - 1];
+    const trend = values[values.length - 1] - values[Math.max(0, values.length - 6)];
+    const trendDir = trend > 0.1 ? 'rising' : trend < -0.1 ? 'falling' : 'stable';
+    const trendLabel = trend > 0.1 ? 'up' : trend < -0.1 ? 'down' : 'steady';
+
+    if (type === 'vibration') {
+        if (last > 5.0) return { text: `Vibration is <strong>critically high</strong> at ${last.toFixed(1)} mm/s (${trendLabel}) - immediate inspection needed`, level: 'critical' };
+        if (last >= 3.5) return { text: `Vibration <strong>approaching threshold</strong> at ${last.toFixed(1)} mm/s (${trendLabel}) - monitor closely`, level: 'warning' };
+        return { text: `Vibration <strong>within safe range</strong> at ${last.toFixed(1)} mm/s (${trendLabel}) - all clear`, level: 'healthy' };
+    }
+
+    if (type === 'temperature') {
+        if (last > 50) return { text: `Rail temp <strong>dangerously high</strong> at ${last.toFixed(0)} deg C (${trendLabel}) - buckling risk`, level: 'critical' };
+        if (last >= 40) return { text: `Rail temp <strong>elevated</strong> at ${last.toFixed(0)} deg C (${trendLabel}) - ${trendDir === 'rising' ? 'still rising' : 'stabilizing'}`, level: 'warning' };
+        return { text: `Rail temp <strong>normal</strong> at ${last.toFixed(0)} deg C (${trendLabel}) - safe range`, level: 'healthy' };
+    }
+
+    if (type === 'gauge') {
+        const absLast = Math.abs(last);
+        if (absLast > 6) return { text: `Gauge deviation <strong>critical</strong> at ${last.toFixed(1)}mm (${trendLabel}) - alignment issue`, level: 'critical' };
+        if (absLast >= 2) return { text: `Gauge deviation <strong>notable</strong> at ${last.toFixed(1)}mm (${trendLabel}) - schedule inspection`, level: 'warning' };
+        return { text: `Gauge deviation <strong>minimal</strong> at ${last.toFixed(1)}mm (${trendLabel}) - well aligned`, level: 'healthy' };
+    }
+
+    if (type === 'strain') {
+        if (last > 3.5) return { text: `Strain load <strong>excessive</strong> at ${last.toFixed(1)} kN (${trendLabel}) - structural stress`, level: 'critical' };
+        if (last >= 2.5) return { text: `Strain load <strong>elevated</strong> at ${last.toFixed(1)} kN (${trendLabel}) - traffic load rising`, level: 'warning' };
+        return { text: `Strain load <strong>normal</strong> at ${last.toFixed(1)} kN (${trendLabel}) - structure healthy`, level: 'healthy' };
+    }
+
+    return { text: 'Telemetry stream healthy.', level: 'healthy' };
+}
+
 function updateDataInsightUI(chartId, type, values) {
     const el = document.getElementById(`insight-${chartId}`);
     if (!el) return;
@@ -315,14 +349,13 @@ function initDashboardCharts(data) {
     });
 
     const timestamps = data.timestamps;
-    const pointBorder = '#171A21';
     
     function createCompactChart(id, label, values, statsKey) {
         const canvas = document.getElementById(`chart-${id}`);
         if (!canvas) return;
         const ctx = canvas.getContext('2d');
         const colors = getChartColorConfig(id, values);
-        const pointBg = '#07080d';
+        const pointBg = '#1a1420';
         
         window.rakshakChartInstances[id] = new Chart(ctx, {
             type: 'line',
@@ -333,7 +366,7 @@ function initDashboardCharts(data) {
                     data: values,
                     borderColor: colors.main,
                     backgroundColor: createGradient(ctx, colors.bg, 'rgba(0,0,0,0)'),
-                    borderWidth: 2,
+                    borderWidth: 2.25,
                     pointBackgroundColor: colors.main,
                     pointBorderColor: pointBg,
                     pointBorderWidth: 1.5,
@@ -343,7 +376,7 @@ function initDashboardCharts(data) {
                     pointHoverBorderColor: '#ffffff',
                     pointHoverBorderWidth: 2,
                     fill: true,
-                    tension: 0.4,
+                    tension: 0.42,
                 }],
             },
             options: getCompactChartDefaults(),
@@ -354,7 +387,7 @@ function initDashboardCharts(data) {
     }
 
     createCompactChart('vibration', 'Vibration (mm/s)', data.vibration);
-    createCompactChart('temperature', 'Temperature (°C)', data.temperature);
+    createCompactChart('temperature', 'Temperature (deg C)', data.temperature);
     createCompactChart('gauge', 'Gauge Deviation (mm)', data.gauge_deviation, 'gauge_deviation');
     createCompactChart('strain', 'Strain Gauge Load (kN)', data.strain_gauge_load, 'strain_gauge_load');
 }
@@ -601,7 +634,7 @@ function initChartModal() {
                     backgroundColor: createGradient(ctx, colors.bg, 'rgba(0,0,0,0)'),
                     borderWidth: 2.5,
                     pointBackgroundColor: colors.main,
-                    pointBorderColor: '#07080d',
+                    pointBorderColor: '#1a1420',
                     pointBorderWidth: 2,
                     pointRadius: 3,
                     pointHoverRadius: 7,
@@ -655,3 +688,48 @@ document.addEventListener('DOMContentLoaded', function () {
     // Dashboard map
     initDashboardMap();
 });
+
+// ====================================================================
+// SPARKLINE RENDERER — SVG sparklines for data-spark divs
+// (Appended from handoff/static/js/dashboard.js)
+// ====================================================================
+(function () {
+  function renderSpark(el) {
+    const values = (el.dataset.values || '').split(',').map(Number).filter(v => !isNaN(v));
+    if (!values.length) return;
+    const stroke = el.dataset.color || '#c9a24a';
+    const w = 200, h = 44, pad = 4;
+    const min = Math.min(...values), max = Math.max(...values);
+    const stepX = (w - pad * 2) / (values.length - 1);
+    const scaleY = v => h - pad - ((v - min) / (max - min || 1)) * (h - pad * 2);
+    const pts = values.map((v, i) => [pad + i * stepX, scaleY(v)]);
+    let d = `M ${pts[0][0]} ${pts[0][1]}`;
+    for (let i = 1; i < pts.length; i++) {
+      const [x0, y0] = pts[i - 1], [x1, y1] = pts[i];
+      const cx = (x0 + x1) / 2;
+      d += ` C ${cx} ${y0}, ${cx} ${y1}, ${x1} ${y1}`;
+    }
+    const area = `${d} L ${pts[pts.length - 1][0]} ${h} L ${pts[0][0]} ${h} Z`;
+    const gid = 'g' + Math.random().toString(36).slice(2, 8);
+    el.innerHTML = `
+      <svg viewBox="0 0 ${w} ${h}" width="100%" height="${h}" preserveAspectRatio="none">
+        <defs>
+          <linearGradient id="${gid}" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stop-color="${stroke}" stop-opacity="0.35"/>
+            <stop offset="100%" stop-color="${stroke}" stop-opacity="0"/>
+          </linearGradient>
+        </defs>
+        <path d="${area}" fill="url(#${gid})"/>
+        <path d="${d}" stroke="${stroke}" stroke-width="2" fill="none" stroke-linecap="round"/>
+      </svg>`;
+  }
+  document.querySelectorAll('[data-spark]').forEach(renderSpark);
+
+  // Theme cards — click to visually mark active (visual only)
+  document.querySelectorAll('.theme-card').forEach(c => {
+    c.addEventListener('click', () => {
+      document.querySelectorAll('.theme-card').forEach(x => x.classList.remove('active'));
+      c.classList.add('active');
+    });
+  });
+})();
