@@ -1,8 +1,8 @@
 // frontend/static/js/dashboard.js
 //
-// Rakshak — Core JavaScript
+// Rakshak - Core JavaScript
 // Handles: live clock, KPI counter animations, Chart.js initialization,
-//          map initialization, and shared utilities.
+//          sidebar behavior, and shared utilities.
 // This file is loaded on every page via base.html.
 
 'use strict';
@@ -18,18 +18,20 @@ function initLiveClock() {
 
     function updateClock() {
         const now = new Date();
-        // Format time as HH:MM:SS
-        const hours = String(now.getHours()).padStart(2, '0');
-        const minutes = String(now.getMinutes()).padStart(2, '0');
-        const seconds = String(now.getSeconds()).padStart(2, '0');
-        clockTime.textContent = `${hours}:${minutes}:${seconds}`;
-
-        if (clockDate) {
-            const year = now.getFullYear();
-            const month = String(now.getMonth() + 1).padStart(2, '0');
-            const day = String(now.getDate()).padStart(2, '0');
-            clockDate.textContent = `${year}/${month}/${day}`;
-        }
+        clockTime.textContent = new Intl.DateTimeFormat('en-IN', {
+            timeZone: 'Asia/Kolkata',
+            hour: '2-digit',
+            minute: '2-digit',
+            second: '2-digit',
+            hour12: false,
+        }).format(now);
+        clockDate.textContent = new Intl.DateTimeFormat('en-IN', {
+            timeZone: 'Asia/Kolkata',
+            weekday: 'short',
+            day: '2-digit',
+            month: 'short',
+            year: 'numeric',
+        }).format(now);
     }
 
     updateClock();
@@ -40,7 +42,7 @@ function initLiveClock() {
 // KPI COUNTER ANIMATION — Animates numbers from 0 to target
 // ====================================================================
 function animateCounters() {
-    const counters = document.querySelectorAll('.kpi-item-value[data-target]');
+    const counters = document.querySelectorAll('.num[data-target], .kpi-item-value[data-target]');
 
     counters.forEach(counter => {
         const target = parseFloat(counter.getAttribute('data-target'));
@@ -85,55 +87,6 @@ function animateCounters() {
 
 // Shared Chart.js defaults — theme-aware
 // Shared Chart.js defaults — glass-themed
-function getChartDefaults() {
-    return {
-        responsive: true,
-        maintainAspectRatio: false,
-        interaction: {
-            mode: 'index',
-            intersect: false,
-        },
-        plugins: {
-            legend: { display: false },
-            tooltip: {
-                backgroundColor: 'rgba(36, 27, 44, 0.94)',
-                titleColor: '#f5f3f7',
-                bodyColor: '#a89db0',
-                borderColor: 'rgba(240, 168, 200, 0.16)',
-                borderWidth: 1,
-                padding: 14,
-                cornerRadius: 10,
-                titleFont: { family: 'Sora', weight: '600', size: 13 },
-                bodyFont: { family: 'IBM Plex Mono', size: 12 },
-                boxPadding: 4,
-                usePointStyle: true,
-            },
-        },
-        scales: {
-            x: {
-                grid: {
-                    color: 'rgba(255,255,255,0.05)',
-                    drawBorder: false,
-                },
-                ticks: {
-                    color: '#6f6579',
-                    font: { family: 'IBM Plex Mono', size: 10 },
-                },
-            },
-            y: {
-                grid: {
-                    color: 'rgba(255,255,255,0.05)',
-                    drawBorder: false,
-                },
-                ticks: {
-                    color: '#6f6579',
-                    font: { family: 'IBM Plex Mono', size: 10 },
-                },
-            },
-        },
-    };
-}
-
 function getCompactChartDefaults() {
     return {
         responsive: true,
@@ -185,7 +138,7 @@ function createGradient(ctx, colorTop, colorBottom) {
 window.rakshakChartInstances = window.rakshakChartInstances || {};
 
 function getChartColorConfig(type, values) {
-    if (!values || values.length === 0) return { main: '#e79bd0', bg: 'rgba(224,92,154,0.22)', status: 'healthy' };
+    if (!values || values.length === 0) return { main: '#4fbf7a', bg: 'rgba(79,191,122,0.22)', status: 'healthy' };
     const lastValue = values[values.length - 1];
     let status = 'healthy';
     
@@ -209,7 +162,9 @@ function getChartColorConfig(type, values) {
         else if (lastValue >= 1.2) status = 'warning';
     }
 
-    return { main: '#e79bd0', bg: 'rgba(224,92,154,0.24)', status: status };
+    if (status === 'critical') return { main: '#f28b8b', bg: 'rgba(242,139,139,0.22)', status: status };
+    if (status === 'warning') return { main: '#e0c07a', bg: 'rgba(224,192,122,0.22)', status: status };
+    return { main: '#4fbf7a', bg: 'rgba(79,191,122,0.20)', status: status };
 }
 
 /**
@@ -317,8 +272,13 @@ function updateDataInsightUI(chartId, type, values) {
 }
 
 function updateChartStats(id, values, statsData, statKey) {
+    const latestEl = document.getElementById(`stat-${id}-latest`);
     const maxEl = document.getElementById(`stat-${id}-max`);
     const minEl = document.getElementById(`stat-${id}-min`);
+    if (latestEl && values && values.length > 0) {
+        const latest = values[values.length - 1];
+        latestEl.textContent = id === 'temperature' ? latest.toFixed(0) : latest.toFixed(2);
+    }
     if (maxEl && minEl) {
         if (statsData && statsData[statKey]) {
             maxEl.textContent = statsData[statKey].max.toFixed(2);
@@ -393,7 +353,83 @@ function initDashboardCharts(data) {
     createCompactChart('strain', 'Strain Gauge Load (kN)', data.strain_gauge_load, 'strain_gauge_load');
 }
 
+function initSystemSummaryChart(summary) {
+    const canvas = document.getElementById('system-summary-chart');
+    if (!canvas || typeof Chart === 'undefined') return;
 
+    const labels = Array.isArray(summary && summary.labels) ? summary.labels : [];
+    const values = Array.isArray(summary && summary.values)
+        ? summary.values.map(value => Number(value) || 0)
+        : [];
+    const total = values.reduce((sum, value) => sum + value, 0);
+    const chartLabels = total > 0 ? labels : ['No records'];
+    const chartValues = total > 0 ? values : [1];
+    const legendValues = total > 0 ? values : [0];
+    const colors = total > 0
+        ? ['#4fbf7a', '#e0c07a', '#f28b8b', '#7fb0ff', '#c9a24a']
+        : ['rgba(168,157,176,0.28)'];
+
+    if (window.rakshakChartInstances.systemSummary) {
+        window.rakshakChartInstances.systemSummary.destroy();
+    }
+
+    window.rakshakChartInstances.systemSummary = new Chart(canvas.getContext('2d'), {
+        type: 'doughnut',
+        data: {
+            labels: chartLabels,
+            datasets: [{
+                data: chartValues,
+                backgroundColor: colors,
+                borderColor: 'rgba(10,8,14,0.82)',
+                borderWidth: 3,
+                hoverOffset: 8,
+            }],
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            cutout: '66%',
+            plugins: {
+                legend: { display: false },
+                tooltip: {
+                    backgroundColor: 'rgba(20, 19, 16, 0.96)',
+                    titleColor: '#f5f3f7',
+                    bodyColor: '#a89db0',
+                    borderColor: 'rgba(201,162,74,0.22)',
+                    borderWidth: 1,
+                    padding: 12,
+                    cornerRadius: 10,
+                },
+            },
+        },
+    });
+
+    const totalEl = document.getElementById('system-summary-total');
+    if (totalEl) totalEl.textContent = total.toLocaleString('en-IN');
+
+    const legendEl = document.getElementById('system-summary-legend');
+    if (!legendEl) return;
+    legendEl.innerHTML = '';
+
+    chartLabels.forEach((label, index) => {
+        const row = document.createElement('div');
+        row.className = 'summary-legend-row';
+
+        const dot = document.createElement('span');
+        dot.className = 'summary-dot';
+        dot.style.background = colors[index % colors.length];
+
+        const labelEl = document.createElement('span');
+        labelEl.textContent = label;
+
+        const valueEl = document.createElement('b');
+        valueEl.className = 'mono';
+        valueEl.textContent = legendValues[index].toLocaleString('en-IN');
+
+        row.append(dot, labelEl, valueEl);
+        legendEl.appendChild(row);
+    });
+}
 
 // ====================================================================
 // THEME-AWARE HELPERS
@@ -412,6 +448,10 @@ window.addEventListener('themeChanged', function(e) {
         Object.values(window.rakshakChartInstances).forEach(chart => chart.destroy());
         window.rakshakChartInstances = {};
         initDashboardCharts(JSON.parse(trendsEl.textContent));
+        var summaryEl = document.getElementById('system-summary-data');
+        if (summaryEl) {
+            initSystemSummaryChart(JSON.parse(summaryEl.textContent));
+        }
     }
 });
 
@@ -455,126 +495,24 @@ function initSidebar() {
 }
 
 // ====================================================================
-// CHART EXPANSION MODAL
-// ====================================================================
-let currentModalChart = null;
-
-function initChartModal() {
-    const modal = document.getElementById('chart-modal');
-    if (!modal) return;
-    
-    function closeModal() {
-        if (modal) modal.style.display = 'none';
-        if (currentModalChart) {
-            currentModalChart.destroy();
-            currentModalChart = null;
-        }
-    }
-    
-    // Event delegation for opening and closing modal
-    document.addEventListener('click', (e) => {
-        // Close modal if clicking close button or backdrop
-        if (e.target.closest('#btn-close-modal') || e.target === modal) {
-            closeModal();
-            return;
-        }
-        
-        // Expand chart
-        const btn = e.target.closest('.btn-expand-chart');
-        if (!btn) return;
-        
-        e.preventDefault();
-        
-        const chartId = btn.getAttribute('data-chart-id');
-        const data = window.rakshakLastChartData;
-        if (!data || !window.rakshakChartInstances || !window.rakshakChartInstances[chartId]) return;
-        
-        const titleEl = document.getElementById('modal-chart-title');
-        
-        // Map chartId to data key and labels
-        let dataKey = chartId;
-        let label = "";
-        let statsKey = chartId;
-        
-        if (chartId === 'vibration') { label = 'Vibration Amplitude'; }
-        else if (chartId === 'temperature') { label = 'Rail Temperature'; }
-        else if (chartId === 'gauge') { label = 'Gauge Deviation'; dataKey = 'gauge_deviation'; statsKey = 'gauge_deviation'; }
-        else if (chartId === 'strain') { label = 'Strain Gauge Load'; dataKey = 'strain_gauge_load'; statsKey = 'strain_gauge_load'; }
-        
-        if (titleEl) titleEl.textContent = label;
-        modal.style.display = 'flex';
-        
-        // Render temporary large chart
-        const canvas = document.getElementById('modal-chart-canvas');
-        if (!canvas) return;
-        const ctx = canvas.getContext('2d');
-        const colors = getChartColorConfig(chartId, data[dataKey]);
-        
-        // ALWAYS destroy previous instance if it exists to avoid "Canvas already in use"
-        if (currentModalChart) {
-            currentModalChart.destroy();
-        }
-        
-        currentModalChart = new Chart(ctx, {
-            type: 'line',
-            data: {
-                labels: data.timestamps,
-                datasets: [{
-                    label: label,
-                    data: data[dataKey],
-                    borderColor: colors.main,
-                    backgroundColor: createGradient(ctx, colors.bg, 'rgba(0,0,0,0)'),
-                    borderWidth: 2.5,
-                    pointBackgroundColor: colors.main,
-                    pointBorderColor: '#1a1420',
-                    pointBorderWidth: 2,
-                    pointRadius: 3,
-                    pointHoverRadius: 7,
-                    pointHoverBackgroundColor: '#ffffff',
-                    pointHoverBorderColor: colors.main,
-                    pointHoverBorderWidth: 3,
-                    fill: true,
-                    tension: 0.4,
-                }],
-            },
-            options: getChartDefaults(),
-        });
-        
-        // Adjust options for the large view
-        currentModalChart.options.maintainAspectRatio = false;
-        if (currentModalChart.options.plugins && currentModalChart.options.plugins.legend) {
-            currentModalChart.options.plugins.legend.display = true;
-        }
-        currentModalChart.update();
-        
-        // Update stats
-        if (data.sensor_stats && data.sensor_stats[statsKey]) {
-            const maxEl = document.getElementById('modal-stat-max');
-            const minEl = document.getElementById('modal-stat-min');
-            if (maxEl) maxEl.textContent = data.sensor_stats[statsKey].max.toFixed(2);
-            if (minEl) minEl.textContent = data.sensor_stats[statsKey].min.toFixed(2);
-        }
-    });
-    
-    document.addEventListener('keydown', (e) => {
-        if (e.key === 'Escape' && modal.style.display !== 'none') closeModal();
-    });
-}
-
-// ====================================================================
 // INITIALIZE ON DOM READY
 // ====================================================================
 document.addEventListener('DOMContentLoaded', function () {
     initLiveClock();
     animateCounters();
     initSidebar();
-    initChartModal();
     
     // Dashboard charts
     var trendsEl = document.getElementById('sensor-trends-data');
     if (trendsEl) {
         var trendData = JSON.parse(trendsEl.textContent);
         initDashboardCharts(trendData);
+    }
+
+    var summaryEl = document.getElementById('system-summary-data');
+    if (summaryEl) {
+        var summaryData = JSON.parse(summaryEl.textContent);
+        initSystemSummaryChart(summaryData);
     }
 });
 
@@ -613,4 +551,5 @@ document.addEventListener('DOMContentLoaded', function () {
       </svg>`;
   }
   document.querySelectorAll('[data-spark]').forEach(renderSpark);
+
 })();
