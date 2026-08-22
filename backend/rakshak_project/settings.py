@@ -94,37 +94,31 @@ WSGI_APPLICATION = 'rakshak_project.wsgi.application'
 # ---------------------------------------------------------------------------
 # Database - Supabase/PostgreSQL only
 # ---------------------------------------------------------------------------
-_database_url = os.environ.get('DATABASE_URL')
-if not _database_url:
-    raise ImproperlyConfigured(
-        'DATABASE_URL is required. Set it to your Supabase PostgreSQL '
-        'connection string, for example: '
-        'postgresql://postgres.<project-ref>:<password>@'
-        'aws-<region>.pooler.supabase.com:5432/postgres?sslmode=require'
-    )
+DB_NAME = os.environ.get('DB_NAME')
+DB_USER = os.environ.get('DB_USER')
+DB_PASSWORD = os.environ.get('DB_PASSWORD')
+DB_HOST = os.environ.get('DB_HOST')
+DB_PORT = os.environ.get('DB_PORT')
 
-if _database_url.lower().startswith(('sqlite:', 'sqlite3:')):
+if not all([DB_NAME, DB_USER, DB_PASSWORD, DB_HOST, DB_PORT]):
     raise ImproperlyConfigured(
-        'SQLite is not supported in this project. Use a Supabase/PostgreSQL '
-        'DATABASE_URL instead.'
+        'Database connection environment variables are missing. '
+        'Please set DB_NAME, DB_USER, DB_PASSWORD, DB_HOST, and DB_PORT in your .env file.'
     )
-
-_database_config = dj_database_url.parse(
-    _database_url,
-    conn_max_age=int(os.environ.get('DATABASE_CONN_MAX_AGE', '60')),
-)
-if _database_config.get('ENGINE') != 'django.db.backends.postgresql':
-    raise ImproperlyConfigured(
-        'DATABASE_URL must point to PostgreSQL/Supabase. SQLite and other '
-        'database engines are intentionally disabled.'
-    )
-
-_database_host = (_database_config.get('HOST') or '').lower()
-if _database_host.endswith(('supabase.co', 'supabase.com')):
-    _database_config.setdefault('OPTIONS', {}).setdefault('sslmode', 'require')
 
 DATABASES = {
-    'default': _database_config,
+    'default': {
+        'ENGINE': 'django.db.backends.postgresql',
+        'NAME': DB_NAME,
+        'USER': DB_USER,
+        'PASSWORD': DB_PASSWORD,
+        'HOST': DB_HOST,
+        'PORT': DB_PORT,
+        'CONN_MAX_AGE': int(os.environ.get('DATABASE_CONN_MAX_AGE', '0')),
+        'OPTIONS': {
+            'sslmode': 'require',
+        }
+    }
 }
 
 # ---------------------------------------------------------------------------
