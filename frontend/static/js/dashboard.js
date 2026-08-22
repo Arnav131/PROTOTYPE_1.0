@@ -14,7 +14,7 @@ function initLiveClock() {
     const clockTime = document.getElementById('clock-time');
     const clockDate = document.getElementById('clock-date');
 
-    if (!clockTime || !clockDate) return;
+    if (!clockTime) return;
 
     function updateClock() {
         const now = new Date();
@@ -24,11 +24,12 @@ function initLiveClock() {
         const seconds = String(now.getSeconds()).padStart(2, '0');
         clockTime.textContent = `${hours}:${minutes}:${seconds}`;
 
-        // Format date as YYYY/MM/DD
-        const year = now.getFullYear();
-        const month = String(now.getMonth() + 1).padStart(2, '0');
-        const day = String(now.getDate()).padStart(2, '0');
-        clockDate.textContent = `${year}/${month}/${day}`;
+        if (clockDate) {
+            const year = now.getFullYear();
+            const month = String(now.getMonth() + 1).padStart(2, '0');
+            const day = String(now.getDate()).padStart(2, '0');
+            clockDate.textContent = `${year}/${month}/${day}`;
+        }
     }
 
     updateClock();
@@ -392,100 +393,7 @@ function initDashboardCharts(data) {
     createCompactChart('strain', 'Strain Gauge Load (kN)', data.strain_gauge_load, 'strain_gauge_load');
 }
 
-function initDashboardMap() {
-    var mapEl = document.getElementById('dashboard-map');
-    if (!mapEl) return;
-    
-    var map = L.map('dashboard-map', {
-        center: [22.5, 79.0],
-        zoom: 5,
-        zoomControl: true,
-        attributionControl: false,
-        preferCanvas: true,
-    });
-    
-    var darkLayer = L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
-        maxZoom: 19,
-    });
-    
-    var lightLayer = L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
-        maxZoom: 19,
-    });
 
-    if (isDarkMode()) {
-        darkLayer.addTo(map);
-    } else {
-        lightLayer.addTo(map);
-    }
-    
-    window.rakshakMap = {
-        map: map,
-        darkLayer: darkLayer,
-        lightLayer: lightLayer
-    };
-    
-    var mapBounds = L.latLngBounds();
-    
-    Promise.all([
-        fetch('/api/stations/').then(r => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.json(); }).catch(() => []),
-        fetch('/api/routes/').then(r => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.json(); }).catch(() => [])
-    ]).then(([stations, routes]) => {
-        stations.forEach(s => {
-            if (s.latitude && s.longitude) {
-                var color = s.health === 'critical' ? '#ef4444' : s.health === 'warning' ? '#f59e0b' : '#06d6a0';
-                L.circleMarker([s.latitude, s.longitude], {
-                    radius: 3,
-                    fillColor: color,
-                    fillOpacity: 0.9,
-                    color: color,
-                    weight: 1,
-                }).addTo(map);
-                mapBounds.extend([s.latitude, s.longitude]);
-            }
-        });
-        
-        routes.forEach(route => {
-            if (route.geometry && route.geometry.length >= 2) {
-                var color = route.status === 'critical' ? '#ef4444' : route.status === 'warning' ? '#f59e0b' : 'rgba(6,214,160,0.35)';
-                var polyline = L.polyline(route.geometry, {
-                    color: color,
-                    weight: 1.5,
-                    opacity: 0.8,
-                }).addTo(map);
-                mapBounds.extend(polyline.getBounds());
-            }
-        });
-        
-        setTimeout(() => {
-            requestAnimationFrame(() => {
-                map.invalidateSize();
-                if (mapBounds.isValid()) {
-                    // Filter out crazy bounds that include Africa/Middle East
-                    var indiaBounds = L.latLngBounds([8.4, 68.7], [37.6, 97.2]);
-                    if (!indiaBounds.contains(mapBounds.getSouthWest()) || !indiaBounds.contains(mapBounds.getNorthEast())) {
-                        // Some geometry is wildly out of bounds, use India as fallback
-                        map.fitBounds(indiaBounds, { padding: [20, 20] });
-                    } else {
-                        map.fitBounds(mapBounds, { padding: [20, 20] });
-                    }
-                } else {
-                    map.fitBounds([[8.4, 68.7], [37.6, 97.2]], { padding: [20, 20] });
-                }
-            });
-        }, 100);
-    });
-    
-    let resizeTimeout;
-    const resizeObserver = new ResizeObserver(() => {
-        clearTimeout(resizeTimeout);
-        resizeTimeout = setTimeout(() => {
-            requestAnimationFrame(() => {
-                map.invalidateSize();
-            });
-        }, 50);
-    });
-    resizeObserver.observe(mapEl);
-}
 
 // ====================================================================
 // THEME-AWARE HELPERS
@@ -497,18 +405,6 @@ function isDarkMode() {
 
 window.addEventListener('themeChanged', function(e) {
     const isDark = e.detail.theme === 'dark';
-    
-    // Update map tile layers
-    if (window.rakshakMap) {
-        if (isDark) {
-            window.rakshakMap.map.removeLayer(window.rakshakMap.lightLayer);
-            window.rakshakMap.map.addLayer(window.rakshakMap.darkLayer);
-        } else {
-            window.rakshakMap.map.removeLayer(window.rakshakMap.darkLayer);
-            window.rakshakMap.map.addLayer(window.rakshakMap.lightLayer);
-        }
-        window.rakshakMap.map.invalidateSize();
-    }
     
     // Update Chart.js instances
     var trendsEl = document.getElementById('sensor-trends-data');
@@ -554,11 +450,7 @@ function initSidebar() {
                     if(chart && typeof chart.resize === 'function') chart.resize();
                 });
             }
-            // Explicit Leaflet Map resize
-            if (window.rakshakMap && window.rakshakMap.map) {
-                window.rakshakMap.map.invalidateSize();
-            }
-        }, 300); 
+        }, 260); 
     });
 }
 
@@ -684,9 +576,6 @@ document.addEventListener('DOMContentLoaded', function () {
         var trendData = JSON.parse(trendsEl.textContent);
         initDashboardCharts(trendData);
     }
-    
-    // Dashboard map
-    initDashboardMap();
 });
 
 // ====================================================================
@@ -724,12 +613,4 @@ document.addEventListener('DOMContentLoaded', function () {
       </svg>`;
   }
   document.querySelectorAll('[data-spark]').forEach(renderSpark);
-
-  // Theme cards — click to visually mark active (visual only)
-  document.querySelectorAll('.theme-card').forEach(c => {
-    c.addEventListener('click', () => {
-      document.querySelectorAll('.theme-card').forEach(x => x.classList.remove('active'));
-      c.classList.add('active');
-    });
-  });
 })();
