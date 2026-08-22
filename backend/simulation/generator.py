@@ -125,24 +125,35 @@ def _generate_physics_iot_rng(source: str, destination: str):
     return readings, flavour_name, flavour_desc
 
 
-def _generate_anomalous_physics_iot_rng(source: str, destination: str):
-    """Generate IoT readings with elevated risk values for patrol simulation."""
-    flavour_idx = random.randint(0, len(ANOMALOUS_SCENARIOS) - 1)
-    flavour_name, flavour_desc = ANOMALOUS_SCENARIOS[flavour_idx]
+def _generate_anomalous_physics_iot_rng(source: str, destination: str, specific_flavour: str = None):
+    """Generate IoT readings with elevated risk values for patrol/defect simulation."""
+    if specific_flavour:
+        matching = [s for s in ANOMALOUS_SCENARIOS if s[0] == specific_flavour]
+        if matching:
+            flavour_name, flavour_desc = matching[0]
+        else:
+            flavour_name, flavour_desc = specific_flavour, f"Simulated condition: {specific_flavour}"
+    else:
+        flavour_idx = random.randint(0, len(ANOMALOUS_SCENARIOS) - 1)
+        flavour_name, flavour_desc = ANOMALOUS_SCENARIOS[flavour_idx]
 
-    base_temp = random.uniform(30.0, 42.0)  # elevated
+    base_temp = random.uniform(30.0, 38.0)
     base_hum = random.uniform(50.0, 75.0)
-    base_gauge = STANDARD_GAUGE_MM + random.uniform(0.5, 3.5)  # widening
-    base_vib = random.uniform(1.8, 3.5)  # elevated
+    base_gauge = STANDARD_GAUGE_MM + random.uniform(0.5, 3.5)
+    base_vib = random.uniform(1.8, 3.5)
 
-    if flavour_name == "thermal_buckle_risk":
-        base_temp = random.uniform(42.0, 55.0)
+    if flavour_name in ("thermal_buckle", "thermal_buckle_risk"):
+        flavour_name = "thermal_buckle_risk"
+        base_temp = random.uniform(43.0, 52.0)
         base_vib = random.uniform(1.2, 2.0)
         base_gauge = STANDARD_GAUGE_MM + random.uniform(-0.2, 0.5)
-    elif flavour_name == "high_vibration":
-        base_vib = random.uniform(3.0, 6.0)
+    elif flavour_name in ("high_vibration", "bearing_wear"):
+        base_vib = random.uniform(3.2, 5.8)
         base_temp = random.uniform(25.0, 35.0)
         base_gauge = STANDARD_GAUGE_MM + random.uniform(-0.3, 0.3)
+    elif flavour_name == "gauge_widening":
+        base_gauge = STANDARD_GAUGE_MM + random.uniform(3.5, 6.5)
+        base_vib = random.uniform(1.8, 3.2)
 
     readings = []
     for t in range(WINDOW_SIZE):
@@ -165,7 +176,7 @@ def _generate_grok(source: str, destination: str, api_key: str, model: str = Non
     flavour_name, flavour_desc = _pick_nominal_scenario(source, destination)
     prompt = _build_llm_prompt(source, destination, flavour_desc)
 
-    model_name = model or os.environ.get("GROK_MODEL") or os.environ.get("XAI_MODEL") or "grok-2-latest"
+    model_name = model or os.environ.get("GROK_MODEL") or os.environ.get("XAI_MODEL") or "grok-3"
 
     resp = requests.post(
         "https://api.x.ai/v1/chat/completions",
@@ -186,6 +197,8 @@ def _generate_grok(source: str, destination: str, api_key: str, model: str = Non
         },
         timeout=20,
     )
+    if resp.status_code != 200:
+        logger.warning(f"[simulation] Grok API returned HTTP {resp.status_code}: {resp.text}")
     resp.raise_for_status()
     data = resp.json()
     text = data["choices"][0]["message"]["content"]
@@ -196,11 +209,12 @@ def _generate_grok(source: str, destination: str, api_key: str, model: str = Non
 # ---------------------------------------------------------------------------
 # Google Gemini API backend
 # ---------------------------------------------------------------------------
-def _generate_gemini(source: str, destination: str, api_key: str):
+def _generate_gemini(source: str, destination: str, api_key: str, model: str = None):
     flavour_name, flavour_desc = _pick_nominal_scenario(source, destination)
     prompt = _build_llm_prompt(source, destination, flavour_desc)
 
-    url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={api_key}"
+    model_name = model or os.environ.get("GEMINI_MODEL") or "gemini-1.5-flash"
+    url = f"https://generativelanguage.googleapis.com/v1beta/models/{model_name}:generateContent?key={api_key}"
     payload = {
         "contents": [{"parts": [{"text": prompt}]}],
         "generationConfig": {
@@ -210,6 +224,8 @@ def _generate_gemini(source: str, destination: str, api_key: str):
     }
 
     resp = requests.post(url, json=payload, timeout=20)
+    if resp.status_code != 200:
+        logger.warning(f"[simulation] Gemini API returned HTTP {resp.status_code}: {resp.text}")
     resp.raise_for_status()
     data = resp.json()
 
@@ -338,28 +354,34 @@ def _parse_llm_json(text: str):
 # ---------------------------------------------------------------------------
 # Public entry point
 # ---------------------------------------------------------------------------
-def generate_journey(source: str, destination: str, patrol_mode: bool = False):
+def generate_journey(source: str, destination: str, patrol_mode: bool = False, condition: str = "auto"):
     """
     Returns (readings, flavour_name, flavour_description, source_used).
     source_used is "grok", "gemini", "anthropic", "openai_compatible", "ollama", "physics_iot_rng",
     or "physics_iot_rng_anomalous".
     """
+    condition = (condition or "auto").strip().lower()
+
+    # If an explicit anomaly condition is requested
+    if condition in ("thermal_buckle", "thermal_buckle_risk", "gauge_widening", "high_vibration", "bearing_wear", "anomaly"):
+        flavour = None if condition == "anomaly" else condition
+        readings, fn, fd = _generate_anomalous_physics_iot_rng(source, destination, specific_flavour=flavour)
+        return readings, fn, fd, "physics_iot_rng_anomalous"
+
+    # If explicit nominal is requested
+    if condition == "nominal":
+        readings, fn, fd = _generate_physics_iot_rng(source, destination)
+        return readings, fn, fd, "physics_iot_rng"
+
     # In patrol mode, 30% chance of anomalous readings
     if patrol_mode and random.random() < 0.30:
         readings, fn, fd = _generate_anomalous_physics_iot_rng(source, destination)
         return readings, fn, fd, "physics_iot_rng_anomalous"
 
-    grok_key = os.environ.get("GROK_API_KEY") or os.environ.get("XAI_API_KEY")
     gemini_key = os.environ.get("GEMINI_API_KEY") or os.environ.get("GOOGLE_API_KEY")
-    anthropic_key = os.environ.get("ANTHROPIC_API_KEY")
+    grok_key = os.environ.get("GROK_API_KEY") or os.environ.get("XAI_API_KEY")
     openai_key = os.environ.get("OPENAI_API_KEY")
-
-    if grok_key:
-        try:
-            readings, flavour_name, flavour_desc = _generate_grok(source, destination, grok_key)
-            return readings, flavour_name, flavour_desc, "grok"
-        except Exception as e:
-            logger.warning(f"[simulation] Grok generation failed, falling back: {e}")
+    anthropic_key = os.environ.get("ANTHROPIC_API_KEY")
 
     if gemini_key:
         try:
@@ -367,6 +389,13 @@ def generate_journey(source: str, destination: str, patrol_mode: bool = False):
             return readings, flavour_name, flavour_desc, "gemini"
         except Exception as e:
             logger.warning(f"[simulation] Gemini generation failed, falling back: {e}")
+
+    if grok_key:
+        try:
+            readings, flavour_name, flavour_desc = _generate_grok(source, destination, grok_key)
+            return readings, flavour_name, flavour_desc, "grok"
+        except Exception as e:
+            logger.warning(f"[simulation] Grok generation failed, falling back: {e}")
 
     if anthropic_key:
         try:
