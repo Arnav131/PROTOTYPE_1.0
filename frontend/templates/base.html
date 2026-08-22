@@ -50,6 +50,10 @@
                             <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path><circle cx="12" cy="10" r="3"></circle>
                             {% elif item.icon == 'readiness' %}
                             <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path><polyline points="9 12 11 14 15 10"></polyline>
+                            {% elif item.icon == 'patrol' %}
+                            <path d="M16 3h5v5M8 3H3v5M3 16v5h5M16 21h5v-5"></path><circle cx="12" cy="12" r="4"></circle>
+                            {% elif item.icon == 'simulation' %}
+                            <path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"></path><line x1="4" y1="22" x2="4" y2="15"></line>
                             {% elif item.icon == 'admin' %}
                             <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle>
                             {% else %}
@@ -74,7 +78,7 @@
                     <div class="avatar">{{ request.user.username|first|upper }}</div>
                     <div style="line-height:1.2;flex:1;min-width:0;">
                         <div style="font-size:12.5px;font-weight:600;">{{ request.user.username }}</div>
-                        <div style="font-size:10.5px;color:var(--text-tertiary);">{% if is_controller %}Controller{% else %}Read-Only{% endif %}</div>
+                        <div style="font-size:10.5px;color:var(--text-tertiary);">{% if is_controller %}Controller{% elif is_patrol_worker %}Patrol Worker{% else %}Read-Only{% endif %}</div>
                     </div>
                     <a class="sidebar-nav-item" style="padding:6px;border-radius:8px;" href="{% url 'logout' %}" title="Logout" aria-label="Logout">
                         <span class="nav-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg></span>
