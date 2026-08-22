@@ -1,0 +1,933 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block extra_head %}
+<style>
+/* Operational Readiness Center Styling */
+.readiness-page {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+    padding-bottom: 2rem;
+}
+
+/* KPI Summary Header */
+.readiness-summary {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 1rem;
+}
+
+.summary-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    padding: 1.25rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+    position: relative;
+    overflow: hidden;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+}
+
+.summary-card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0; height: 3px;
+}
+
+.summary-card--total::before { background: var(--accent-cyan, #06b6d4); }
+.summary-card--ready::before { background: #10b981; }
+.summary-card--caution::before { background: #f59e0b; }
+.summary-card--hold::before { background: #ef4444; }
+
+.summary-value {
+    font-size: 2rem;
+    font-weight: 700;
+    font-family: 'JetBrains Mono', monospace;
+    line-height: 1;
+}
+
+.summary-label {
+    font-size: 0.85rem;
+    color: var(--text-muted);
+    font-weight: 500;
+}
+
+/* Mode Switcher & Controls Bar */
+.control-bar {
+    background: var(--bg-card);
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    padding: 1rem 1.25rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 1rem;
+}
+
+.mode-toggle-group {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.view-btn {
+    background: var(--bg-elevated, rgba(255,255,255,0.05));
+    border: 1px solid var(--border-color);
+    color: var(--text-main);
+    padding: 0.5rem 1rem;
+    border-radius: 8px;
+    font-size: 0.875rem;
+    font-weight: 600;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    transition: all 0.2s ease;
+}
+
+.view-btn:hover {
+    border-color: var(--accent-cyan, #06b6d4);
+}
+
+.view-btn.active {
+    background: var(--accent-cyan, #06b6d4);
+    color: #0f172a;
+    border-color: var(--accent-cyan, #06b6d4);
+}
+
+.case-filter-tabs {
+    display: flex;
+    gap: 0.5rem;
+    overflow-x: auto;
+    padding-bottom: 0.25rem;
+}
+
+.case-tab-btn {
+    background: var(--bg-elevated, rgba(255,255,255,0.03));
+    border: 1px solid var(--border-color);
+    color: var(--text-muted);
+    padding: 0.5rem 0.85rem;
+    border-radius: 8px;
+    font-size: 0.825rem;
+    font-weight: 500;
+    cursor: pointer;
+    white-space: nowrap;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    transition: all 0.2s;
+}
+
+.case-tab-btn:hover {
+    color: var(--text-main);
+    border-color: var(--accent-cyan, #06b6d4);
+}
+
+.case-tab-btn.active {
+    background: rgba(6, 182, 212, 0.15);
+    color: var(--accent-cyan, #06b6d4);
+    border-color: var(--accent-cyan, #06b6d4);
+}
+
+.status-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+}
+.status-dot--ready { background: #10b981; box-shadow: 0 0 8px #10b981; }
+.status-dot--caution { background: #f59e0b; box-shadow: 0 0 8px #f59e0b; }
+.status-dot--hold { background: #ef4444; box-shadow: 0 0 8px #ef4444; }
+.status-dot--pending { background: #64748b; }
+
+/* Main Readiness Panels Container */
+.readiness-container {
+    display: grid;
+    gap: 1.5rem;
+}
+
+.readiness-container--single {
+    grid-template-columns: 1fr;
+}
+
+.readiness-container--split {
+    grid-template-columns: 1fr 1fr;
+}
+
+@media (max-width: 1024px) {
+    .readiness-container--split {
+        grid-template-columns: 1fr;
+    }
+}
+
+/* Individual Case Card */
+.case-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border-color);
+    border-radius: 14px;
+    padding: 1.5rem;
+    display: flex;
+    flex-direction: column;
+    gap: 1.25rem;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
+    position: relative;
+}
+
+.case-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    border-bottom: 1px solid var(--border-color);
+    padding-bottom: 1rem;
+    gap: 1rem;
+}
+
+.case-meta {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+}
+
+.case-badge-row {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+}
+
+.case-code-badge {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.8rem;
+    font-weight: 700;
+    padding: 0.2rem 0.5rem;
+    background: rgba(6, 182, 212, 0.15);
+    color: var(--accent-cyan, #06b6d4);
+    border-radius: 6px;
+    border: 1px solid rgba(6, 182, 212, 0.3);
+}
+
+.case-type-badge {
+    font-size: 0.75rem;
+    font-weight: 600;
+    padding: 0.2rem 0.5rem;
+    background: var(--bg-elevated);
+    color: var(--text-muted);
+    border-radius: 6px;
+    border: 1px solid var(--border-color);
+}
+
+.case-title {
+    font-size: 1.15rem;
+    font-weight: 700;
+    margin: 0.25rem 0 0 0;
+    color: var(--text-main);
+}
+
+.case-section-subtitle {
+    font-size: 0.85rem;
+    color: var(--text-muted);
+}
+
+.decision-badge-large {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.5rem 1rem;
+    border-radius: 10px;
+    font-weight: 700;
+    font-size: 0.9rem;
+    letter-spacing: 0.02em;
+    text-transform: uppercase;
+    font-family: 'JetBrains Mono', monospace;
+}
+
+.decision-badge-large--ready {
+    background: rgba(16, 185, 129, 0.15);
+    color: #10b981;
+    border: 1px solid rgba(16, 185, 129, 0.35);
+}
+
+.decision-badge-large--caution {
+    background: rgba(245, 158, 11, 0.15);
+    color: #f59e0b;
+    border: 1px solid rgba(245, 158, 11, 0.35);
+}
+
+.decision-badge-large--hold {
+    background: rgba(239, 68, 68, 0.15);
+    color: #ef4444;
+    border: 1px solid rgba(239, 68, 68, 0.35);
+}
+
+/* Telemetry Section */
+.telemetry-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+    gap: 0.75rem;
+}
+
+.telemetry-item {
+    background: var(--bg-elevated, rgba(255,255,255,0.02));
+    border: 1px solid var(--border-color);
+    border-radius: 10px;
+    padding: 0.75rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+}
+
+.telemetry-label {
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    font-weight: 500;
+}
+
+.telemetry-val {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 1.2rem;
+    font-weight: 700;
+}
+
+.telemetry-status-tag {
+    font-size: 0.7rem;
+    font-weight: 700;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+}
+
+.tag--pass { color: #10b981; }
+.tag--fail { color: #ef4444; }
+
+/* Checklist Section */
+.section-heading {
+    font-size: 0.95rem;
+    font-weight: 700;
+    color: var(--text-main);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 0.5rem;
+}
+
+.checklist-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.65rem;
+}
+
+.checklist-card {
+    background: var(--bg-elevated, rgba(255,255,255,0.02));
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    padding: 0.75rem 1rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 1rem;
+    transition: all 0.15s ease;
+}
+
+.checklist-card:hover {
+    border-color: rgba(6, 182, 212, 0.3);
+}
+
+.checklist-info {
+    display: flex;
+    flex-direction: column;
+    gap: 0.2rem;
+}
+
+.checklist-title-row {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.9rem;
+    font-weight: 600;
+}
+
+.role-badge {
+    font-size: 0.7rem;
+    font-weight: 600;
+    padding: 0.15rem 0.4rem;
+    background: rgba(99, 102, 241, 0.15);
+    color: #818cf8;
+    border-radius: 4px;
+    border: 1px solid rgba(99, 102, 241, 0.3);
+}
+
+.checklist-sub {
+    font-size: 0.775rem;
+    color: var(--text-muted);
+}
+
+.checklist-action-btn {
+    background: transparent;
+    border: 1px solid var(--border-color);
+    color: var(--text-main);
+    padding: 0.35rem 0.65rem;
+    border-radius: 6px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+    white-space: nowrap;
+}
+
+.checklist-action-btn:hover {
+    background: rgba(16, 185, 129, 0.15);
+    border-color: #10b981;
+    color: #10b981;
+}
+
+.item-status-badge {
+    font-size: 0.75rem;
+    font-weight: 700;
+    padding: 0.25rem 0.55rem;
+    border-radius: 6px;
+    text-transform: uppercase;
+    font-family: 'JetBrains Mono', monospace;
+}
+.item-status--passed { background: rgba(16, 185, 129, 0.15); color: #10b981; }
+.item-status--pending { background: rgba(100, 116, 139, 0.15); color: #94a3b8; }
+.item-status--failed { background: rgba(239, 68, 68, 0.15); color: #ef4444; }
+
+/* Controller Decision Station */
+.decision-station {
+    background: rgba(15, 23, 42, 0.4);
+    border: 1px solid var(--border-color);
+    border-radius: 10px;
+    padding: 1rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+
+.decision-btn-group {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 0.5rem;
+}
+
+.btn-decision {
+    padding: 0.65rem 0.5rem;
+    border-radius: 8px;
+    font-size: 0.8rem;
+    font-weight: 700;
+    cursor: pointer;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.2rem;
+    transition: all 0.2s;
+    border: 1px solid transparent;
+}
+
+.btn-go {
+    background: rgba(16, 185, 129, 0.2);
+    color: #10b981;
+    border-color: rgba(16, 185, 129, 0.4);
+}
+.btn-go:hover { background: #10b981; color: #0f172a; }
+
+.btn-caution {
+    background: rgba(245, 158, 11, 0.2);
+    color: #f59e0b;
+    border-color: rgba(245, 158, 11, 0.4);
+}
+.btn-caution:hover { background: #f59e0b; color: #0f172a; }
+
+.btn-hold {
+    background: rgba(239, 68, 68, 0.2);
+    color: #ef4444;
+    border-color: rgba(239, 68, 68, 0.4);
+}
+.btn-hold:hover { background: #ef4444; color: #ffffff; }
+
+/* Digital Seal / Authorization Stamp */
+.digital-seal {
+    border: 2px dashed #10b981;
+    background: rgba(16, 185, 129, 0.05);
+    border-radius: 8px;
+    padding: 0.75rem 1rem;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+}
+
+.seal-text {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.75rem;
+    color: #10b981;
+    line-height: 1.4;
+}
+
+/* Audit Log List */
+.audit-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+    max-height: 140px;
+    overflow-y: auto;
+    font-size: 0.75rem;
+    font-family: 'JetBrains Mono', monospace;
+}
+
+.audit-entry {
+    color: var(--text-muted);
+    padding: 0.2rem 0;
+    border-bottom: 1px solid rgba(255,255,255,0.03);
+}
+
+.audit-entry span {
+    color: var(--accent-cyan, #06b6d4);
+}
+
+/* Toast */
+.toast-msg {
+    position: fixed;
+    bottom: 2rem;
+    right: 2rem;
+    background: #0f172a;
+    color: #ffffff;
+    border: 1px solid var(--accent-cyan, #06b6d4);
+    padding: 0.75rem 1.25rem;
+    border-radius: 8px;
+    font-weight: 600;
+    font-size: 0.875rem;
+    box-shadow: 0 10px 25px rgba(0,0,0,0.4);
+    z-index: 9999;
+    display: none;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="readiness-page">
+
+    <!-- KPI Summary Bar -->
+    <section class="readiness-summary">
+        <div class="summary-card summary-card--total">
+            <div class="summary-value" id="kpi-total">{{ summary.total }}</div>
+            <div class="summary-label">Active Readiness Cases</div>
+        </div>
+        <div class="summary-card summary-card--ready">
+            <div class="summary-value" style="color: #10b981;" id="kpi-ready">{{ summary.ready }}</div>
+            <div class="summary-label">Cleared for Full Speed (GO)</div>
+        </div>
+        <div class="summary-card summary-card--caution">
+            <div class="summary-value" style="color: #f59e0b;" id="kpi-caution">{{ summary.caution }}</div>
+            <div class="summary-label">Caution / Speed Restricted</div>
+        </div>
+        <div class="summary-card summary-card--hold">
+            <div class="summary-value" style="color: #ef4444;" id="kpi-hold">{{ summary.hold }}</div>
+            <div class="summary-label">Safety Gate Blocked (HOLD)</div>
+        </div>
+    </section>
+
+    <!-- Controls & Multi-Case Selector -->
+    <section class="control-bar">
+        <div class="case-filter-tabs" id="case-selector-bar">
+            <!-- Tabs generated by JS -->
+        </div>
+
+        <div class="mode-toggle-group">
+            <button class="view-btn active" id="btn-single-view" onclick="setViewMode('single')">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect></svg>
+                Single Inspection
+            </button>
+            <button class="view-btn" id="btn-split-view" onclick="setViewMode('split')">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="8" height="18" rx="1"></rect><rect x="13" y="3" width="8" height="18" rx="1"></rect></svg>
+                ⚖️ Split-Screen Compare
+            </button>
+        </div>
+    </section>
+
+    <!-- Dynamic Main Readiness View (Single or Split) -->
+    <main class="readiness-container readiness-container--single" id="readiness-main-container">
+        <!-- Rendered by JS -->
+    </main>
+
+</div>
+
+<!-- Toast notification element -->
+<div class="toast-msg" id="readiness-toast"></div>
+
+<!-- JSON Data from Django View -->
+<script id="readiness-cases-data" type="application/json">
+{{ cases_json|safe }}
+</script>
+
+<script>
+// State Management
+let casesData = JSON.parse(document.getElementById('readiness-cases-data').textContent);
+let currentViewMode = 'single'; // 'single' or 'split'
+let activeCaseCodeA = casesData.length > 0 ? casesData[0].case_code : null;
+let activeCaseCodeB = casesData.length > 1 ? casesData[1].case_code : (casesData.length > 0 ? casesData[0].case_code : null);
+
+function getCSRFToken() {
+    let cookieValue = null;
+    if (document.cookie && document.cookie !== '') {
+        const cookies = document.cookie.split(';');
+        for (let i = 0; i < cookies.length; i++) {
+            const cookie = cookies[i].trim();
+            if (cookie.substring(0, 10) === ('csrftoken=')) {
+                cookieValue = decodeURIComponent(cookie.substring(10));
+                break;
+            }
+        }
+    }
+    return cookieValue;
+}
+
+function showToast(msg) {
+    const toast = document.getElementById('readiness-toast');
+    toast.textContent = msg;
+    toast.style.display = 'block';
+    setTimeout(() => { toast.style.display = 'none'; }, 3500);
+}
+
+function setViewMode(mode) {
+    currentViewMode = mode;
+    document.getElementById('btn-single-view').classList.toggle('active', mode === 'single');
+    document.getElementById('btn-split-view').classList.toggle('active', mode === 'split');
+    
+    const container = document.getElementById('readiness-main-container');
+    container.className = `readiness-container readiness-container--${mode}`;
+    renderMainView();
+}
+
+function selectCase(caseCode, targetSlot = 'A') {
+    if (targetSlot === 'A') {
+        activeCaseCodeA = caseCode;
+    } else {
+        activeCaseCodeB = caseCode;
+    }
+    renderTabs();
+    renderMainView();
+}
+
+function renderTabs() {
+    const bar = document.getElementById('case-selector-bar');
+    bar.innerHTML = casesData.map(c => {
+        let dotClass = 'status-dot--pending';
+        if (c.readiness_decision === 'ready') dotClass = 'status-dot--ready';
+        else if (c.readiness_decision === 'conditionally_ready') dotClass = 'status-dot--caution';
+        else if (c.readiness_decision === 'not_ready') dotClass = 'status-dot--hold';
+
+        const isActive = (c.case_code === activeCaseCodeA);
+        return `
+            <button class="case-tab-btn ${isActive ? 'active' : ''}" onclick="selectCase('${c.case_code}', 'A')">
+                <span class="status-dot ${dotClass}"></span>
+                <span>${c.case_code}</span>
+                <span style="opacity: 0.6;">(${c.case_type === 'route_departure' ? 'Train' : 'Track'})</span>
+            </button>
+        `;
+    }).join('');
+}
+
+function renderCaseCard(c, slot = 'A') {
+    if (!c) return '<div class="case-card">No case selected</div>';
+
+    let decisionClass = 'decision-badge-large--hold';
+    let decisionText = 'HOLD / NO-GO (0 KM/H)';
+    if (c.readiness_decision === 'ready') {
+        decisionClass = 'decision-badge-large--ready';
+        decisionText = `GO — FULL SPEED (${c.cleared_speed_kmph || 130} KM/H)`;
+    } else if (c.readiness_decision === 'conditionally_ready') {
+        decisionClass = 'decision-badge-large--caution';
+        decisionText = `CAUTION (${c.cleared_speed_kmph || 30} KM/H)`;
+    }
+
+    const t = c.telemetry;
+
+    // Render Checklist
+    const checklistHtml = c.checklist.map(item => {
+        let statusBadge = `<span class="item-status-badge item-status--pending">Pending</span>`;
+        if (item.status === 'passed') statusBadge = `<span class="item-status-badge item-status--passed">Passed</span>`;
+        else if (item.status === 'failed') statusBadge = `<span class="item-status-badge item-status--failed">Failed</span>`;
+
+        return `
+            <div class="checklist-card">
+                <div class="checklist-info">
+                    <div class="checklist-title-row">
+                        <span>${item.title}</span>
+                        <span class="role-badge">${item.category_display || item.category}</span>
+                    </div>
+                    <div class="checklist-sub">
+                        ${item.signed_off_by ? `Signed by <strong>${item.signed_off_by}</strong> at ${item.signed_off_at || ''}` : 'Awaiting field officer verification'}
+                        ${item.sign_off_comments ? `— <em>"${item.sign_off_comments}"</em>` : ''}
+                    </div>
+                </div>
+                <div style="display: flex; align-items: center; gap: 0.5rem;">
+                    ${statusBadge}
+                    ${item.status !== 'passed' ? `
+                        <button class="checklist-action-btn" onclick="signOffItem('${c.case_code}', ${item.id})">
+                            Sign-off
+                        </button>
+                    ` : ''}
+                </div>
+            </div>
+        `;
+    }).join('');
+
+    // Render Audit Trail
+    const auditHtml = c.audit_trail.map(a => `
+        <div class="audit-entry">
+            <span>[${a.time_str}]</span> <strong>${a.actor_identifier}:</strong> ${a.notes}
+        </div>
+    `).join('') || '<div class="audit-entry">No decisions recorded yet.</div>';
+
+    return `
+        <div class="case-card" id="card-${c.case_code}">
+            <div class="case-header">
+                <div class="case-meta">
+                    <div class="case-badge-row">
+                        <span class="case-code-badge">${c.case_code}</span>
+                        <span class="case-type-badge">${c.case_type_display}</span>
+                        ${c.train_number ? `<span class="case-type-badge" style="color:var(--accent-cyan,#06b6d4)">${c.train_number}</span>` : ''}
+                    </div>
+                    <h2 class="case-title">${c.title}</h2>
+                    <div class="case-section-subtitle">Target: ${c.track_id} (${c.section_name})</div>
+                </div>
+                <div class="${decisionClass}">
+                    ${decisionText}
+                </div>
+            </div>
+
+            <!-- Telemetry Gauges -->
+            <div>
+                <div class="section-heading">
+                    <span>📡 Automated IoT & AI Telemetry Gate</span>
+                    <span style="font-family:'JetBrains Mono'; font-size:0.85rem; color:var(--accent-cyan,#06b6d4);">Score: ${t.composite_score}%</span>
+                </div>
+                <div class="telemetry-grid">
+                    <div class="telemetry-item">
+                        <span class="telemetry-label">Vibration RMS</span>
+                        <span class="telemetry-val" style="color:${t.vibration_passed ? '#10b981' : '#ef4444'}">${t.vibration_rms} mm/s</span>
+                        <span class="telemetry-status-tag ${t.vibration_passed ? 'tag--pass' : 'tag--fail'}">
+                            ${t.vibration_passed ? '✓ < 2.5 mm/s' : '⚠ High Spike'}
+                        </span>
+                    </div>
+                    <div class="telemetry-item">
+                        <span class="telemetry-label">Rail Temp</span>
+                        <span class="telemetry-val" style="color:${t.temperature_passed ? '#10b981' : '#ef4444'}">${t.temperature_celsius}°C</span>
+                        <span class="telemetry-status-tag ${t.temperature_passed ? 'tag--pass' : 'tag--fail'}">
+                            ${t.temperature_passed ? '✓ 15°C - 45°C' : '⚠ Out of Range'}
+                        </span>
+                    </div>
+                    <div class="telemetry-item">
+                        <span class="telemetry-label">AI Defect Risk</span>
+                        <span class="telemetry-val" style="color:${t.ai_risk_passed ? '#10b981' : '#ef4444'}">${t.ai_risk_score}%</span>
+                        <span class="telemetry-status-tag ${t.ai_risk_passed ? 'tag--pass' : 'tag--fail'}">
+                            ${t.ai_risk_passed ? '✓ Safe < 25%' : '⚠ Anomaly Alert'}
+                        </span>
+                    </div>
+                    <div class="telemetry-item">
+                        <span class="telemetry-label">Checklist Progress</span>
+                        <span class="telemetry-val" style="color:#06b6d4;">${t.checklist_percentage}%</span>
+                        <span class="telemetry-status-tag tag--pass">${t.passed_checklist_items}/${t.total_checklist_items} Completed</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Field-Synced Checklist -->
+            <div>
+                <div class="section-heading">
+                    <span>🛡️ Field Safety Guard & Officer Sign-offs</span>
+                    <span style="font-size:0.75rem; color:var(--text-muted);">Independent State Partition</span>
+                </div>
+                <div class="checklist-list">
+                    ${checklistHtml}
+                </div>
+            </div>
+
+            <!-- Controller Go/No-Go Decision Station -->
+            <div class="decision-station">
+                <div class="section-heading" style="margin-bottom:0.25rem;">
+                    <span>🚦 Operations Controller Gatekeeper</span>
+                    ${c.is_overridden ? '<span class="role-badge" style="background:#ef4444; color:#fff;">OVERRIDE ACTIVE</span>' : ''}
+                </div>
+                <div class="decision-btn-group">
+                    <button class="btn-decision btn-go" onclick="submitDecision('${c.case_code}', 'ready', 130)">
+                        <span>🟢 AUTHORIZE GO</span>
+                        <span style="font-size:0.7rem; opacity:0.8;">Full Speed 130 km/h</span>
+                    </button>
+                    <button class="btn-decision btn-caution" onclick="submitDecision('${c.case_code}', 'conditionally_ready', 30)">
+                        <span>🟡 CAUTION</span>
+                        <span style="font-size:0.7rem; opacity:0.8;">Restricted 30 km/h</span>
+                    </button>
+                    <button class="btn-decision btn-hold" onclick="submitDecision('${c.case_code}', 'not_ready', 0)">
+                        <span>🔴 HOLD / NO-GO</span>
+                        <span style="font-size:0.7rem; opacity:0.8;">Block Line / 0 km/h</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Digital Seal -->
+            ${c.readiness_decision !== 'pending' ? `
+                <div class="digital-seal">
+                    <div class="seal-text">
+                        <div><strong>OFFICIAL RAILWAY READINESS SEAL:</strong> ${c.readiness_decision.toUpperCase()}</div>
+                        <div>STAMP ID: <code>${c.case_code}</code> • AUTH BY: <code>${c.decision_taken_by || 'Controller'}</code></div>
+                        <div>TIMESTAMP: ${c.decision_taken_at || 'Recorded in Database'} • PERMITTED: ${c.cleared_speed_kmph} KM/H</div>
+                    </div>
+                    <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#10b981" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path></svg>
+                </div>
+            ` : ''}
+
+            <!-- Immutable Audit Trail -->
+            <div>
+                <div class="section-heading" style="font-size:0.8rem; margin-bottom:0.25rem;">
+                    <span>📜 Immutable Case Audit Trail (Isolated)</span>
+                </div>
+                <div class="audit-list">
+                    ${auditHtml}
+                </div>
+            </div>
+        </div>
+    `;
+}
+
+function renderMainView() {
+    const container = document.getElementById('readiness-main-container');
+    const caseA = casesData.find(c => c.case_code === activeCaseCodeA) || casesData[0];
+    
+    if (currentViewMode === 'single') {
+        container.innerHTML = renderCaseCard(caseA, 'A');
+    } else {
+        const caseB = casesData.find(c => c.case_code === activeCaseCodeB && c.case_code !== caseA.case_code) || casesData[1] || caseA;
+        container.innerHTML = `
+            ${renderCaseCard(caseA, 'A')}
+            ${renderCaseCard(caseB, 'B')}
+        `;
+    }
+}
+
+// Action Handlers
+async function signOffItem(caseCode, itemId) {
+    try {
+        const resp = await fetch(`/readiness/api/cases/${caseCode}/sign-off/`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': getCSRFToken(),
+            },
+            body: JSON.stringify({
+                item_id: itemId,
+                status: 'passed',
+                role_designation: 'Safety Guard / Field Inspector',
+                notes: 'Physical check verified on site.'
+            })
+        });
+
+        const data = await resp.json();
+        if (data.status === 'success') {
+            updateLocalCase(data.case);
+            showToast(`✓ Case ${caseCode}: Checklist item signed off!`);
+        } else {
+            alert('Error: ' + data.message);
+        }
+    } catch (e) {
+        console.error(e);
+        alert('Network error during sign-off');
+    }
+}
+
+async function submitDecision(caseCode, decision, speedKmph) {
+    try {
+        const resp = await fetch(`/readiness/api/cases/${caseCode}/decide/`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': getCSRFToken(),
+            },
+            body: JSON.stringify({
+                decision: decision,
+                speed_kmph: speedKmph,
+                notes: `Decision ${decision.toUpperCase()} authorized via Operations Control Center.`,
+                is_override: false
+            })
+        });
+
+        const data = await resp.json();
+        if (data.status === 'success') {
+            updateLocalCase(data.case);
+            showToast(`✓ Case ${caseCode}: Decision ${decision.toUpperCase()} recorded!`);
+        } else if (data.requires_override) {
+            if (confirm(`Safety gate check failed: ${data.message}
+
+Do you want to log a mandatory Controller Override?`)) {
+                submitOverride(caseCode, decision, speedKmph);
+            }
+        } else {
+            alert('Error: ' + data.message);
+        }
+    } catch (e) {
+        console.error(e);
+        alert('Network error during decision submission');
+    }
+}
+
+async function submitOverride(caseCode, decision, speedKmph) {
+    const reason = prompt('Please enter the mandatory justification for Controller Override:');
+    if (!reason) return;
+
+    try {
+        const resp = await fetch(`/readiness/api/cases/${caseCode}/decide/`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': getCSRFToken(),
+            },
+            body: JSON.stringify({
+                decision: decision,
+                speed_kmph: speedKmph,
+                notes: `CONTROLLER OVERRIDE: ${reason}`,
+                is_override: true,
+                override_reason: reason
+            })
+        });
+
+        const data = await resp.json();
+        if (data.status === 'success') {
+            updateLocalCase(data.case);
+            showToast(`✓ Case ${caseCode}: Override recorded!`);
+        } else {
+            alert('Override Error: ' + data.message);
+        }
+    } catch (e) {
+        console.error(e);
+    }
+}
+
+function updateLocalCase(updatedCase) {
+    const idx = casesData.findIndex(c => c.case_code === updatedCase.case_code);
+    if (idx !== -1) {
+        casesData[idx] = updatedCase;
+    }
+    
+    // Update KPI Summary
+    const total = casesData.length;
+    const ready = casesData.filter(c => c.readiness_decision === 'ready').length;
+    const caution = casesData.filter(c => c.readiness_decision === 'conditionally_ready').length;
+    const hold = casesData.filter(c => c.readiness_decision === 'not_ready' || c.readiness_decision === 'pending').length;
+
+    document.getElementById('kpi-total').textContent = total;
+    document.getElementById('kpi-ready').textContent = ready;
+    document.getElementById('kpi-caution').textContent = caution;
+    document.getElementById('kpi-hold').textContent = hold;
+
+    renderTabs();
+    renderMainView();
+}
+
+// Initial Render
+renderTabs();
+renderMainView();
+</script>
+{% endblock %}

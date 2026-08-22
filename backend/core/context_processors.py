@@ -25,6 +25,12 @@ def navigation(request):
             'icon': 'map',
             'description': 'Railway Network',
         },
+        {
+            'name': 'Readiness',
+            'url': '/readiness/',
+            'icon': 'readiness',
+            'description': 'Operational Readiness Center',
+        },
     ]
 
     # Add controller-only tools for staff users

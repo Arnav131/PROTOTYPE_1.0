@@ -23,6 +23,7 @@ urlpatterns = [
     path('alerts/', include('alerts.urls')),
     path('tickets/', include('tickets.urls')),
     path('map/', include('map_view.urls')),
+    path('readiness/', include('readiness.urls')),
     path('simulation/', include('simulation.urls')),
     path('api/', include('map_view.api_urls')),
     path('api/predict/', include('sensors.api_urls')),
