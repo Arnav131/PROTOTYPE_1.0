@@ -237,14 +237,14 @@ function _renderTracksData() {
 
     // Dynamic weight & color based on zoom
     var baseWeight = 0.9;
-    var baseColor  = '#475569'; // Muted blue-gray
+    var baseColor  = '#6f6579';
 
     if (currentZoom >= 7 && currentZoom <= 9) {
         baseWeight = 1.4;
-        baseColor  = '#64748b';
+        baseColor  = '#8f829b';
     } else if (currentZoom >= 10) {
         baseWeight = 2.2;
-        baseColor  = '#8193a8';
+        baseColor  = '#b5a6c1';
     }
 
     // Single unified Leaflet GeoJSON layer using HTML5 Canvas renderer
@@ -271,7 +271,7 @@ function _renderTracksData() {
                 weight = Math.max(2.2, baseWeight + 0.8);
                 opacity = 0.95;
             } else if (isSelected) {
-                color = '#06b6d4';
+                color = '#e79bd0';
                 weight = Math.max(3.5, baseWeight + 2.0);
                 opacity = 1.0;
             }
@@ -334,8 +334,8 @@ function _renderStationsData() {
 
         var circleMarker = L.circleMarker([lat, lng], {
             radius: isJunction ? 4.0 : 2.5,
-            color: isJunction ? '#38bdf8' : '#64748b',
-            fillColor: isJunction ? '#0284c7' : '#0f172a',
+            color: isJunction ? '#f0a8c8' : '#8f829b',
+            fillColor: isJunction ? '#e05c9a' : '#1a1420',
             fillOpacity: 1.0,
             weight: isJunction ? 1.5 : 1.0
         });
@@ -407,7 +407,7 @@ function _renderCriticalAssetInspector(crit) {
     if (!container) return;
 
     var historyHtml = crit.maintenance_history.map(function(item) {
-        return '<div style="font-size:0.75rem;color:#cbd5e1;padding:2px 0;">' + item + '</div>';
+        return '<div style="font-size:0.75rem;color:#d8d0df;padding:2px 0;">' + item + '</div>';
     }).join('');
 
     container.innerHTML =
@@ -432,7 +432,7 @@ function _renderCriticalAssetInspector(crit) {
         '</div>' +
 
         '<div class="prop-group">' +
-            '<div style="font-family:\'JetBrains Mono\',monospace;font-size:0.7rem;color:#64748b;font-weight:600;margin-bottom:4px;">MAINTENANCE HISTORY</div>' +
+            '<div style="font-family:var(--font-display);font-size:0.7rem;color:#6f6579;font-weight:700;margin-bottom:4px;">MAINTENANCE HISTORY</div>' +
             historyHtml +
         '</div>' +
 
@@ -500,7 +500,7 @@ function _renderTrackInspector(props, status) {
     container.innerHTML =
         '<div class="asset-title">' +
             '<span>RAILWAY TRACK</span>' +
-            '<span class="risk-tag" style="background:rgba(56,189,248,0.1);color:#38bdf8;border-color:rgba(56,189,248,0.3)">' + (props.ref || 'OSM') + '</span>' +
+            '<span class="risk-tag" style="background:rgba(224,92,154,0.12);color:#f0a8c8;border-color:rgba(224,92,154,0.3)">' + (props.ref || 'OSM') + '</span>' +
         '</div>' +
 
         '<div class="prop-group">' +
@@ -515,8 +515,8 @@ function _renderTrackInspector(props, status) {
             '<div class="prop-row"><span class="prop-key">MAX SPEED</span><span class="prop-val">' + (props.maxspeed || 'Not available') + '</span></div>' +
         '</div>' +
 
-        '<div class="action-card" style="background:rgba(15,23,42,0.6);border-color:#1e293b">' +
-            '<div class="action-card-title" style="color:#94a3b8">RAKSHAK MONITORED CORRIDOR</div>' +
+        '<div class="action-card" style="background:rgba(255,255,255,0.045);border-color:rgba(255,255,255,0.08)">' +
+            '<div class="action-card-title" style="color:#a89db0">RAKSHAK MONITORED CORRIDOR</div>' +
             '<div style="font-size:0.75rem;color:#cbd5e1;margin-top:4px;">OSM Geometry Verified • Live Sensor Overlay Active</div>' +
         '</div>';
 }
@@ -528,7 +528,7 @@ function _renderStationInspector(props) {
     container.innerHTML =
         '<div class="asset-title">' +
             '<span>STATION DETAILS</span>' +
-            '<span class="risk-tag" style="background:rgba(16,185,129,0.1);color:#10b981;border-color:rgba(16,185,129,0.3)">' + (props.ref || 'OSM') + '</span>' +
+            '<span class="risk-tag" style="background:rgba(126,224,168,0.12);color:#7ee0a8;border-color:rgba(126,224,168,0.3)">' + (props.ref || 'OSM') + '</span>' +
         '</div>' +
 
         '<div class="prop-group">' +

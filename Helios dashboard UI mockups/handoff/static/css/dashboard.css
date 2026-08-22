@@ -306,7 +306,7 @@ a:hover { color: var(--gold); }
 .telemetry-badge.crit { background: rgba(242,139,139,0.16); color: var(--red); }
 .telemetry-badge.warn { background: rgba(201,162,74,0.18); color: var(--gold-soft); }
 .telemetry-badge.ok   { background: rgba(79,191,122,0.16); color: var(--emerald-soft); }
-.telemetry-chart-wrap { width: 100%; position: relative; display: block; height: 44px; margin-top: 10px; }
+.telemetry-chart-wrap { width: 100%; }
 .telemetry-stats { display: flex; justify-content: space-between; margin-top: 8px; font-size: 10.5px; color: var(--text-tertiary); }
 .telemetry-stats b { color: var(--text-secondary); font-weight: 500; font-variant-numeric: tabular-nums; }
 
@@ -422,46 +422,3 @@ a:hover { color: var(--gold); }
 .slider-thumb { position: absolute; top: -4px; width: 14px; height: 14px; border-radius: 50%; background: #fff; border: 2px solid var(--gold); box-shadow: 0 2px 6px rgba(0,0,0,0.4); transform: translateX(-50%); }
 .hex-row { display: flex; gap: 8px; margin-top: 2px; }
 .hex-input { flex: 1; background: rgba(0,0,0,0.35); border: 1px solid var(--border-subtle); border-radius: 10px; padding: 8px 10px; font-size: 11.5px; font-family: var(--font-mono); color: var(--text-primary); }
-
-/* ==========================================================
-   Backward-compat utility classes (used by alerts, tickets,
-   map, and simulation pages that extend base.html)
-   ========================================================== */
-.text-crit { color: var(--red); }
-.bg-crit { background: rgba(242,139,139,0.16); color: var(--red); }
-.border-crit { border-left-color: var(--red); }
-
-.text-warn { color: var(--gold-soft); }
-.bg-warn { background: rgba(224,192,122,0.16); color: var(--gold-soft); }
-.border-warn { border-left-color: var(--gold-soft); }
-
-.text-good { color: var(--emerald-soft); }
-.bg-good { background: rgba(79,191,122,0.16); color: var(--emerald-soft); }
-.border-good { border-left-color: var(--emerald-soft); }
-
-/* Dashboard Map Hooks */
-#dashboard-map {
-  width: 100%; height: 100%; position: absolute; inset: 0; z-index: 0; border-radius: 16px;
-}
-
-/* Chart canvas sizing */
-canvas[id^="chart-"] {
-  width: 100% !important;
-  height: 44px !important;
-}
-
-/* ---------- Chart expansion modal ---------- */
-.chart-modal-backdrop {
-  position: fixed; inset: 0; z-index: 998;
-  background: rgba(0,0,0,0.6);
-  backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px);
-  display: flex; align-items: center; justify-content: center;
-}
-.chart-modal-container {
-  background: rgba(30,30,30,0.85);
-  backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
-  border: 1px solid var(--border-glass);
-  border-radius: var(--radius-lg);
-  padding: 24px;
-  width: 80%; max-width: 800px;
-}
