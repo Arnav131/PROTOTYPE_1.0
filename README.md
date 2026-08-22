@@ -175,8 +175,23 @@ http://127.0.0.1:8000/
 - Alerts
 - Tickets
 - Railway Map
-- Simulation (staff-only)
+- Simulation (staff-only — live synthetic IoT telemetry generator with Grok / Gemini / Anthropic / OpenAI / Physics RNG)
 - Sensors
+
+---
+
+# Live Simulation & AI Generator Setup
+
+The Simulation feature (`/simulation/`) generates a fresh 16-reading IoT sensor journey on demand and feeds it into the live Rakshak prediction pipeline.
+
+To power scenario generation using **xAI Grok API**:
+1. Obtain an API key from [xAI Console](https://console.x.ai/).
+2. Add your key to `.env`:
+   ```bash
+   GROK_API_KEY=xai-your-key-here
+   GROK_MODEL=grok-2-latest
+   ```
+3. Fallback support is built-in: if Grok is unreachable or unconfigured, the system seamlessly tries Gemini, Anthropic, OpenAI, Ollama, and finally the dynamic physics-based IoT RNG engine.
 
 ---
 
