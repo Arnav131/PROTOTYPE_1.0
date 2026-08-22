@@ -197,9 +197,10 @@
             suggestionsEl.appendChild(div);
         });
 
-        document.getElementById('sim-explanation').textContent = explanation
-            ? ('Model explanation: ' + explanation)
-            : '';
+        var readinessBtn = document.getElementById('sim-readiness-btn');
+        if (readinessBtn && data.readiness_url) {
+            readinessBtn.href = data.readiness_url;
+        }
 
         renderChart(data.readings || []);
     }
