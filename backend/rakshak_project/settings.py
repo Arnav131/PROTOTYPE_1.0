@@ -51,6 +51,7 @@ INSTALLED_APPS = [
     'ai_integration',
     'simulation',
     'readiness',
+    'patrol',
 ]
 
 MIDDLEWARE = [

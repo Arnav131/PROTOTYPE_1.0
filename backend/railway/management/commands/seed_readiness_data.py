@@ -12,10 +12,31 @@ User = get_user_model()
 
 
 class Command(BaseCommand):
-    help = "Seed demonstration operational readiness cases with separation logic."
+    help = "Seed Flight-Deck Train Route Departure Clearance demonstration cases (Plan 4)."
 
     def handle(self, *args, **options):
-        self.stdout.write("Seeding Operational Readiness demonstration data...")
+        self.stdout.write("Seeding Flight-Deck Train Route Departure Clearance data...")
+
+        # -------------------------------------------------------------
+        # Ensure Users Exist (Controller & Field Worker)
+        # -------------------------------------------------------------
+        controller_user, created_c = User.objects.get_or_create(
+            username="controller",
+            defaults={"is_staff": True, "is_superuser": True, "first_name": "Chief", "last_name": "Dispatcher"}
+        )
+        if created_c or not controller_user.has_usable_password():
+            controller_user.set_password("controller123")
+            controller_user.is_staff = True
+            controller_user.is_superuser = True
+            controller_user.save()
+
+        worker_user, created_w = User.objects.get_or_create(
+            username="worker",
+            defaults={"is_staff": False, "is_superuser": False, "first_name": "Field", "last_name": "Officer"}
+        )
+        if created_w or not worker_user.has_usable_password():
+            worker_user.set_password("worker123")
+            worker_user.save()
 
         # Find or create track sections
         trk_1 = TrackSection.objects.filter(section_code__icontains="NDL").first() or TrackSection.objects.first()
@@ -30,9 +51,186 @@ class Command(BaseCommand):
             )
 
         # -------------------------------------------------------------
-        # CASE 1: Track Re-opening (Delhi–Mathura) -> READY FOR GO (130 km/h)
+        # CASE 1: Train #12951 (Rajdhani Express) -> CLEARED FOR DEPARTURE (GO)
         # -------------------------------------------------------------
         case1, _ = OperationalReadinessCase.objects.update_or_create(
+            case_code="OPR-DEP-12951",
+            defaults={
+                "title": "Train #12951 (Rajdhani Express) Departure Clearance",
+                "case_type": OperationalReadinessCase.CaseType.ROUTE_DEPARTURE,
+                "train_number": "12951 New Delhi – Mumbai Central Rajdhani Express",
+                "track_section": trk_1,
+                "assigned_team": team,
+                "description": "Pre-departure flight-deck route clearance and electronic interlocking check before green departure signal from Platform 1 (NDLS).",
+                "workflow_status": OperationalReadinessCase.WorkflowStatus.COMPLETED,
+                "readiness_decision": OperationalReadinessCase.ReadinessDecision.READY,
+                "isolation_state": OperationalReadinessCase.IsolationState.RESTORED,
+                "sensor_metrics": {
+                    "vibration_rms": 1.12,
+                    "temperature_celsius": 28.4,
+                    "ai_risk_score": 0.04,
+                    "route_health_alerts": 0,
+                },
+                "readiness_score": Decimal("98.50"),
+                "cleared_speed_kmph": 130,
+                "decision_taken_by": "Chief Train Dispatcher (NDLS Control)",
+                "decision_taken_at": timezone.now(),
+                "decision_reference": "DEP-AUTH-12951-GO",
+                "decision_notes": "All 3 pre-flight pillars verified nominal: Route Health verified, Interlocking synced, Schedule Window clear. CLEARED FOR DEPARTURE (GO).",
+                "is_overridden": False,
+            }
+        )
+
+        c1_items = [
+            (
+                1,
+                "ROUTE_HEALTH",
+                "Route Health: All track sections along route have 0 critical unresolved alerts",
+                ReadinessChecklistItem.Category.SAFETY,
+                ReadinessChecklistItem.Status.PASSED,
+                "R. K. Sharma (Field Track Inspector)",
+                "Onboard IoT telemetry verified nominal (Vib 1.12 mm/s, Temp 28.4°C). Zero unresolved track alerts on NDLS-MMCT corridor."
+            ),
+            (
+                2,
+                "SIGNAL_INTERLOCKING",
+                "Signal Interlocking: Section interlocking synced",
+                ReadinessChecklistItem.Category.SIGNAL,
+                ReadinessChecklistItem.Status.PASSED,
+                "S. Gupta (Chief Signal Inspector)",
+                "Electronic Interlocking (EI) locked from Platform 1 to Down Main Line. Section interlocking status synchronized 100%."
+            ),
+            (
+                3,
+                "SCHEDULE_WINDOW",
+                "Schedule Window: No conflicting maintenance blocks on the schedule",
+                ReadinessChecklistItem.Category.SAFETY,
+                ReadinessChecklistItem.Status.PASSED,
+                "A. Verma (Station Master NDLS)",
+                "Timetable departure slot #2026-DEP-951 confirmed. Zero maintenance blocks or speed restriction conflicts active."
+            ),
+        ]
+        for seq, code, title, cat, status, signed_by, notes in c1_items:
+            ReadinessChecklistItem.objects.update_or_create(
+                case=case1, sequence=seq,
+                defaults={
+                    "item_code": code, "title": title, "category": cat,
+                    "status": status, "is_required": True,
+                    "signed_off_by": signed_by,
+                    "signed_off_at": timezone.now() if signed_by else None,
+                    "sign_off_comments": notes,
+                }
+            )
+
+        if not ReadinessAuditRecord.objects.filter(
+            case=case1,
+            record_type=ReadinessAuditRecord.RecordType.DECISION,
+            decision_reference="DEP-AUTH-12951-GO",
+        ).exists():
+            ReadinessAuditRecord.objects.create(
+                case=case1,
+                record_type=ReadinessAuditRecord.RecordType.DECISION,
+                actor_type=ReadinessAuditRecord.ActorType.USER,
+                actor_identifier="Chief Train Dispatcher",
+                decision=OperationalReadinessCase.ReadinessDecision.READY,
+                decision_reference="DEP-AUTH-12951-GO",
+                new_state={"decision": "ready", "speed_kmph": 130},
+                decision_summary="CLEARED FOR DEPARTURE (GO) — Authorized green signal at full permissible speed 130 km/h.",
+                notes="Flight-deck pre-departure clearance protocol completed successfully.",
+            )
+
+        # -------------------------------------------------------------
+        # CASE 2: Train #12004 (Shatabdi Express) -> HOLD AT PLATFORM (NO-GO)
+        # -------------------------------------------------------------
+        case2, _ = OperationalReadinessCase.objects.update_or_create(
+            case_code="OPR-DEP-12004",
+            defaults={
+                "title": "Train #12004 (Shatabdi Express) Departure Clearance",
+                "case_type": OperationalReadinessCase.CaseType.ROUTE_DEPARTURE,
+                "train_number": "12004 New Delhi – Lucknow Jn Shatabdi Express",
+                "track_section": trk_2,
+                "assigned_team": team,
+                "description": "Pre-departure flight-deck route clearance and safety audit for Platform 4 (NDLS) departure to Lucknow.",
+                "workflow_status": OperationalReadinessCase.WorkflowStatus.FIELD_VERIFICATION,
+                "readiness_decision": OperationalReadinessCase.ReadinessDecision.NOT_READY,
+                "isolation_state": OperationalReadinessCase.IsolationState.ISOLATED,
+                "sensor_metrics": {
+                    "vibration_rms": 3.85,
+                    "temperature_celsius": 46.2,
+                    "ai_risk_score": 0.72,
+                    "route_health_alerts": 2,
+                },
+                "readiness_score": Decimal("33.00"),
+                "cleared_speed_kmph": 0,
+                "decision_taken_by": "Safety Officer (NDLS Control)",
+                "decision_taken_at": timezone.now(),
+                "decision_reference": "HOLD-PLATFORM-12004",
+                "decision_notes": "HOLD AT PLATFORM: Conflicting track maintenance block on Ghaziabad downline and unresolved signal interlocking sync. Red departure signal enforced.",
+                "is_overridden": False,
+            }
+        )
+
+        c2_items = [
+            (
+                1,
+                "ROUTE_HEALTH",
+                "Route Health: All track sections along route have 0 critical unresolved alerts",
+                ReadinessChecklistItem.Category.SAFETY,
+                ReadinessChecklistItem.Status.FAILED,
+                "K. L. Meena (P-Way Engineer)",
+                "Critical ballast shift alert active at KM 42/6 (Ghaziabad section). Vibration spike 3.85 mm/s exceeds 2.5 mm/s threshold."
+            ),
+            (
+                2,
+                "SIGNAL_INTERLOCKING",
+                "Signal Interlocking: Section interlocking synced",
+                ReadinessChecklistItem.Category.SIGNAL,
+                ReadinessChecklistItem.Status.PENDING,
+                "",
+                "Awaiting field sync verification from Signal Maintenance Team on turnout 14B."
+            ),
+            (
+                3,
+                "SCHEDULE_WINDOW",
+                "Schedule Window: No conflicting maintenance blocks on the schedule",
+                ReadinessChecklistItem.Category.SAFETY,
+                ReadinessChecklistItem.Status.FAILED,
+                "Operations Dispatch",
+                "Conflicting emergency maintenance block #MB-402 active between Ghaziabad and Aligarh. Departure slot unavailable."
+            ),
+        ]
+        for seq, code, title, cat, status, signed_by, notes in c2_items:
+            ReadinessChecklistItem.objects.update_or_create(
+                case=case2, sequence=seq,
+                defaults={
+                    "item_code": code, "title": title, "category": cat,
+                    "status": status, "is_required": True,
+                    "signed_off_by": signed_by,
+                    "signed_off_at": timezone.now() if signed_by else None,
+                    "sign_off_comments": notes,
+                }
+            )
+
+        if not ReadinessAuditRecord.objects.filter(
+            case=case2,
+            record_type=ReadinessAuditRecord.RecordType.DECISION,
+            decision_reference="HOLD-PLATFORM-12004",
+        ).exists():
+            ReadinessAuditRecord.objects.create(
+                case=case2,
+                record_type=ReadinessAuditRecord.RecordType.DECISION,
+                actor_type=ReadinessAuditRecord.ActorType.SYSTEM,
+                actor_identifier="Automated Safety Interlock",
+                decision=OperationalReadinessCase.ReadinessDecision.NOT_READY,
+                new_state={"decision": "not_ready", "speed_kmph": 0},
+                decision_summary="HOLD AT PLATFORM (NO-GO) — Departure signal locked red due to Route Health failure & schedule block conflict.",
+                notes="Safety interlock active.",
+            )
+
+        # -------------------------------------------------------------
+        # CASE 3: Delhi–Mathura Main Line Track Re-Opening (Track Case)
+        # -------------------------------------------------------------
+        case3, _ = OperationalReadinessCase.objects.update_or_create(
             case_code="OPR-TRK-NDL-001",
             defaults={
                 "title": "Delhi–Mathura Main Line Track Re-Opening & Speed Clearance",
@@ -53,134 +251,16 @@ class Command(BaseCommand):
                 "decision_taken_by": "Senior Divisional Engineer (DLI)",
                 "decision_taken_at": timezone.now(),
                 "decision_reference": "LINE-BLOCK-CLR-9012",
-                "decision_notes": "All track telemetry verified nominal. Physical clearance verified. Line restored to normal speed 130 km/h.",
-                "is_overridden": False,
-            }
-        )
-
-        c1_items = [
-            (1, "CREW_CLEAR", "Ground Crew & Equipment Cleared", ReadinessChecklistItem.Category.SAFETY, ReadinessChecklistItem.Status.PASSED, "R. K. Sharma (Field Safety Guard)", "All 8 track workers and grinding machines evacuated to safe cess."),
-            (2, "OHE_POWER", "25kV Traction Power Energization", ReadinessChecklistItem.Category.OHE, ReadinessChecklistItem.Status.PASSED, "P. Verma (Traction Power Controller)", "Isolation removed. 25kV OHE feeder energized and synced."),
-            (3, "INTERLOCKING", "Point Machine & Interlocking Synchronized", ReadinessChecklistItem.Category.SIGNAL, ReadinessChecklistItem.Status.PASSED, "S. Gupta (Chief Signal Inspector)", "Electronic Interlocking points tested. Route locking verified."),
-            (4, "PW_MEMO", "Permanent Way Section Engineer Memo", ReadinessChecklistItem.Category.CIVIL, ReadinessChecklistItem.Status.PASSED, "A. Singh (Section Engineer P-Way)", "Visual track alignment and ultrasonic weld inspection signed off."),
-        ]
-        for seq, code, title, cat, status, signed_by, notes in c1_items:
-            ReadinessChecklistItem.objects.update_or_create(
-                case=case1, sequence=seq,
-                defaults={
-                    "item_code": code, "title": title, "category": cat,
-                    "status": status, "is_required": True,
-                    "signed_off_by": signed_by, "signed_off_at": timezone.now(),
-                    "sign_off_comments": notes,
-                }
-            )
-
-        ReadinessAuditRecord.objects.get_or_create(
-            case=case1, record_type=ReadinessAuditRecord.RecordType.DECISION,
-            defaults={
-                "actor_type": ReadinessAuditRecord.ActorType.USER,
-                "actor_identifier": "Sr. Divisional Engineer",
-                "decision": OperationalReadinessCase.ReadinessDecision.READY,
-                "new_state": {"decision": "ready", "speed_kmph": 130},
-                "decision_summary": "Authorized line clearance at full permissible speed 130 km/h.",
-                "notes": "Line clearance protocol complete.",
-            }
-        )
-
-        # -------------------------------------------------------------
-        # CASE 2: Track Re-opening (Agra–Gwalior) -> CRITICAL HOLD (0 km/h)
-        # -------------------------------------------------------------
-        case2, _ = OperationalReadinessCase.objects.update_or_create(
-            case_code="OPR-TRK-AGC-002",
-            defaults={
-                "title": "Agra–Gwalior Section Emergency Weld Assessment",
-                "case_type": OperationalReadinessCase.CaseType.TRACK_REOPENING,
-                "track_section": trk_2,
-                "assigned_team": team,
-                "description": "Rail surface defect flagged by track vibration sensor. Thermal stress and joint displacement under review.",
-                "workflow_status": OperationalReadinessCase.WorkflowStatus.FIELD_VERIFICATION,
-                "readiness_decision": OperationalReadinessCase.ReadinessDecision.NOT_READY,
-                "isolation_state": OperationalReadinessCase.IsolationState.ISOLATED,
-                "sensor_metrics": {
-                    "vibration_rms": 4.82,
-                    "temperature_celsius": 48.6,
-                    "ai_risk_score": 0.84,
-                },
-                "readiness_score": Decimal("25.00"),
-                "cleared_speed_kmph": 0,
-                "decision_taken_by": "Safety Officer (AGC)",
-                "decision_taken_at": timezone.now(),
-                "decision_reference": "HOLD-EMERGENCY-441",
-                "decision_notes": "CRITICAL: Sensor vibration spike (4.82 mm/s > 2.5 mm/s) and high rail temperature. Track remains blocked.",
-                "is_overridden": False,
-            }
-        )
-
-        c2_items = [
-            (1, "CREW_CLEAR", "Ground Crew & Equipment Cleared", ReadinessChecklistItem.Category.SAFETY, ReadinessChecklistItem.Status.PENDING, "", "Crew is currently on track inspecting rail defect at KM 124/8."),
-            (2, "OHE_POWER", "25kV Traction Power Isolation Grounded", ReadinessChecklistItem.Category.OHE, ReadinessChecklistItem.Status.PENDING, "", "Traction power remains isolated for worker protection."),
-            (3, "INTERLOCKING", "Point Machine & Interlocking Synchronized", ReadinessChecklistItem.Category.SIGNAL, ReadinessChecklistItem.Status.FAILED, "M. Kumar (Signal Inspector)", "Switch point detector contact mismatch detected."),
-            (4, "PW_MEMO", "Permanent Way Section Engineer Memo", ReadinessChecklistItem.Category.CIVIL, ReadinessChecklistItem.Status.PASSED, "K. L. Meena (P-Way Engineer)", "Preliminary crack detection report registered in Rakshak."),
-        ]
-        for seq, code, title, cat, status, signed_by, notes in c2_items:
-            ReadinessChecklistItem.objects.update_or_create(
-                case=case2, sequence=seq,
-                defaults={
-                    "item_code": code, "title": title, "category": cat,
-                    "status": status, "is_required": True,
-                    "signed_off_by": signed_by,
-                    "signed_off_at": timezone.now() if signed_by else None,
-                    "sign_off_comments": notes,
-                }
-            )
-
-        ReadinessAuditRecord.objects.get_or_create(
-            case=case2, record_type=ReadinessAuditRecord.RecordType.DECISION,
-            defaults={
-                "actor_type": ReadinessAuditRecord.ActorType.SYSTEM,
-                "actor_identifier": "Automated Safety Gate",
-                "decision": OperationalReadinessCase.ReadinessDecision.NOT_READY,
-                "new_state": {"decision": "not_ready", "speed_kmph": 0},
-                "decision_summary": "Automatic HOLD triggered due to vibration spike > 2.5 mm/s and pending crew clearance.",
-                "notes": "Safety interlock active.",
-            }
-        )
-
-        # -------------------------------------------------------------
-        # CASE 3: Train Departure (Rajdhani #12951) -> CAUTION (30 km/h)
-        # -------------------------------------------------------------
-        case3, _ = OperationalReadinessCase.objects.update_or_create(
-            case_code="OPR-DEP-12951",
-            defaults={
-                "title": "Train #12951 (Rajdhani Express) Departure Safety Clearance",
-                "case_type": OperationalReadinessCase.CaseType.ROUTE_DEPARTURE,
-                "train_number": "12951 New Delhi – Mumbai Central Rajdhani Express",
-                "track_section": trk_1,
-                "description": "Pre-departure route safety clearance and electronic interlocking check before green departure signal.",
-                "workflow_status": OperationalReadinessCase.WorkflowStatus.COMPLETED,
-                "readiness_decision": OperationalReadinessCase.ReadinessDecision.CONDITIONALLY_READY,
-                "isolation_state": OperationalReadinessCase.IsolationState.RESTORED,
-                "sensor_metrics": {
-                    "vibration_rms": 2.10,
-                    "temperature_celsius": 38.0,
-                    "ai_risk_score": 0.18,
-                },
-                "readiness_score": Decimal("82.00"),
-                "cleared_speed_kmph": 30,
-                "decision_taken_by": "Chief Train Dispatcher (NDLS)",
-                "decision_taken_at": timezone.now(),
-                "decision_reference": "DEP-AUTH-12951-NDLS",
-                "decision_notes": "Departure authorized under Caution speed 30 km/h over NDLS yard turnout due to adjacent track maintenance.",
-                "decision_conditions": "Speed restricted to 30 km/h until clearing KM 4/2.",
+                "decision_notes": "All track telemetry verified nominal. Line restored to normal speed 130 km/h.",
                 "is_overridden": False,
             }
         )
 
         c3_items = [
-            (1, "ROUTE_BLOCK", "Downline Route Clearance", ReadinessChecklistItem.Category.SAFETY, ReadinessChecklistItem.Status.PASSED, "Station Master (NDLS)", "Platform 1 departure route cleared of all shunting movements."),
-            (2, "INTERLOCKING_ROUTE", "Electronic Route Interlocking Locked", ReadinessChecklistItem.Category.SIGNAL, ReadinessChecklistItem.Status.PASSED, "Signal In-Charge", "Route locked from Platform 1 to Down Fast line."),
-            (3, "TRACTION_FEED", "Substation 25kV Feeder Voltage Normal", ReadinessChecklistItem.Category.OHE, ReadinessChecklistItem.Status.PASSED, "TPC Delhi Control", "Voltage 26.2 kV steady."),
-            (4, "LOCO_SYNC", "Locomotive ATP & Telemetry Handshake", ReadinessChecklistItem.Category.DOCUMENTATION, ReadinessChecklistItem.Status.PASSED, "Loco Pilot (Capt. R. Verma)", "Kavach cab signaling confirmed active."),
+            (1, "CREW_CLEAR", "Ground Crew & Equipment Cleared", ReadinessChecklistItem.Category.SAFETY, ReadinessChecklistItem.Status.PASSED, "R. K. Sharma (Field Safety Guard)", "All 8 track workers and grinding machines evacuated to safe cess."),
+            (2, "OHE_POWER", "25kV Traction Power Energization", ReadinessChecklistItem.Category.OHE, ReadinessChecklistItem.Status.PASSED, "P. Verma (Traction Power Controller)", "Isolation removed. 25kV OHE feeder energized and synced."),
+            (3, "INTERLOCKING", "Point Machine & Interlocking Synchronized", ReadinessChecklistItem.Category.SIGNAL, ReadinessChecklistItem.Status.PASSED, "S. Gupta (Chief Signal Inspector)", "Electronic Interlocking points tested. Route locking verified."),
+            (4, "PW_MEMO", "Permanent Way Section Engineer Memo", ReadinessChecklistItem.Category.CIVIL, ReadinessChecklistItem.Status.PASSED, "A. Singh (Section Engineer P-Way)", "Visual track alignment and ultrasonic weld inspection signed off."),
         ]
         for seq, code, title, cat, status, signed_by, notes in c3_items:
             ReadinessChecklistItem.objects.update_or_create(
@@ -193,16 +273,5 @@ class Command(BaseCommand):
                 }
             )
 
-        ReadinessAuditRecord.objects.get_or_create(
-            case=case3, record_type=ReadinessAuditRecord.RecordType.DECISION,
-            defaults={
-                "actor_type": ReadinessAuditRecord.ActorType.USER,
-                "actor_identifier": "Chief Train Dispatcher",
-                "decision": OperationalReadinessCase.ReadinessDecision.CONDITIONALLY_READY,
-                "new_state": {"decision": "conditionally_ready", "speed_kmph": 30},
-                "decision_summary": "Cleared for departure with 30 km/h turnout caution restriction.",
-                "notes": "Route locked and synchronized.",
-            }
-        )
+        self.stdout.write(self.style.SUCCESS("Successfully seeded Flight-Deck Train Departure Clearance cases!"))
 
-        self.stdout.write(self.style.SUCCESS("Successfully seeded 3 isolated Operational Readiness cases!"))
