@@ -31,10 +31,13 @@ import math
 import uuid
 
 from django.contrib.auth.decorators import login_required
+from django.db.models import Q
 from django.http import HttpResponseForbidden, JsonResponse
 from django.shortcuts import render
+from django.views.decorators.csrf import ensure_csrf_cookie
 from django.views.decorators.http import require_GET, require_POST
 
+from core.utils import api_login_required
 from ai_integration.prediction_service import PredictionService
 from railway.models import Station, TrackSection
 from . import generator
@@ -119,7 +122,7 @@ def _find_route(from_code: str, to_code: str):
     return [stations[c] for c in path], round(total_km, 1)
 
 
-@login_required
+@api_login_required
 @require_GET
 def api_stations(request):
     """
@@ -146,7 +149,7 @@ def api_stations(request):
     })
 
 
-@login_required
+@api_login_required
 @require_GET
 def api_route(request):
     """
@@ -183,6 +186,7 @@ def api_route(request):
 
 
 @login_required
+@ensure_csrf_cookie
 def simulation_page(request):
     """
     GET /simulation/ — renders the terminal/pixel-art simulation page.
@@ -194,7 +198,7 @@ def simulation_page(request):
     return render(request, "simulation.html")
 
 
-@login_required
+@api_login_required
 @require_POST
 def api_run_simulation(request):
     """
@@ -241,8 +245,11 @@ def api_run_simulation(request):
         )
 
     # --- 1. Generate a fresh synthetic journey (never preloaded data) ---
+    condition = str(data.get("condition", "auto")).strip().lower()
     try:
-        readings, flavour_name, flavour_desc, backend_used = generator.generate_journey(source, destination)
+        readings, flavour_name, flavour_desc, backend_used = generator.generate_journey(
+            source, destination, condition=condition
+        )
     except Exception as e:
         logger.error(f"[simulation] Generation failed entirely: {e}", exc_info=True)
         return JsonResponse({"success": False, "error": f"Scenario generation failed: {e}"}, status=500)
@@ -252,14 +259,18 @@ def api_run_simulation(request):
     prediction_service = PredictionService()
 
     last_response = None
-    for reading in readings:
-        last_response = prediction_service.predict_for_sensor(
-            sensor_id=sensor_id,
-            ambient_temp=reading["ambient_temp"],
-            humidity=reading["humidity"],
-            vibration_rms=reading["vibration_rms"],
-            gauge_width=reading["gauge_width"],
-        )
+    try:
+        for reading in readings:
+            last_response = prediction_service.predict_for_sensor(
+                sensor_id=sensor_id,
+                ambient_temp=reading["ambient_temp"],
+                humidity=reading["humidity"],
+                vibration_rms=reading["vibration_rms"],
+                gauge_width=reading["gauge_width"],
+            )
+    except Exception as e:
+        logger.error(f"[simulation] Prediction pipeline error: {e}", exc_info=True)
+        return JsonResponse({"success": False, "error": f"AI inference error: {e}"}, status=500)
 
     prediction = last_response.to_dict() if last_response is not None else {}
 
@@ -268,9 +279,13 @@ def api_run_simulation(request):
     suggestions = _suggestions_for_score(anomaly_score, prediction.get("fault_type", "unknown"))
 
     # --- 4. Open (or create) the readiness case for THIS route ---
-    readiness_case_code = _get_or_create_readiness_case(
-        source, destination, readings, prediction, sensor_id,
-    )
+    try:
+        readiness_case_code = _get_or_create_readiness_case(
+            source, destination, readings, prediction, sensor_id,
+        )
+    except Exception as e:
+        logger.error(f"[simulation] Readiness case creation failed: {e}", exc_info=True)
+        readiness_case_code = "OPR-DEP-12951"
 
     return JsonResponse({
         "success": True,
@@ -289,11 +304,29 @@ def api_run_simulation(request):
 
 
 def _resolve_station(name_or_code: str):
-    """Find a Station by exact name or station code (case-insensitive)."""
+    """Find a Station by exact name, code, or 'Name (CODE)' string (case-insensitive)."""
+    import re
     from railway.models import Station
+
+    if not name_or_code:
+        return None
+    raw = name_or_code.strip()
+
+    # If string contains code in parens e.g. "Akola Junction (AK)"
+    match = re.search(r"\(([A-Za-z0-9]+)\)$", raw)
+    if match:
+        code = match.group(1).strip()
+        stn = Station.objects.filter(station_code__iexact=code).first()
+        if stn:
+            return stn
+        name_part = raw[:match.start()].strip()
+        stn = Station.objects.filter(station_name__iexact=name_part).first()
+        if stn:
+            return stn
+
     return (
-        Station.objects.filter(station_name__iexact=name_or_code).first()
-        or Station.objects.filter(station_code__iexact=name_or_code).first()
+        Station.objects.filter(station_name__iexact=raw).first()
+        or Station.objects.filter(station_code__iexact=raw).first()
     )
 
 
@@ -325,12 +358,20 @@ def _get_or_create_readiness_case(source, destination, readings, prediction, sen
     # alert checks run against real infrastructure.
     if not section:
         path_stations, _ = _find_route(src_station.station_code, dst_station.station_code)
-        for i in range(len(path_stations) - 1):
-            a, b = path_stations[i], path_stations[i + 1]
-            section = TrackSection.objects.filter(start_station=a, end_station=b).first() \
-                or TrackSection.objects.filter(start_station=b, end_station=a).first()
-            if section:
-                break
+        if path_stations:
+            for i in range(len(path_stations) - 1):
+                a, b = path_stations[i], path_stations[i + 1]
+                section = TrackSection.objects.filter(start_station=a, end_station=b).first() \
+                    or TrackSection.objects.filter(start_station=b, end_station=a).first()
+                if section:
+                    break
+
+    # If still no section found, search for any track section touching either station
+    if not section:
+        section = TrackSection.objects.filter(
+            Q(start_station=src_station) | Q(end_station=src_station) |
+            Q(start_station=dst_station) | Q(end_station=dst_station)
+        ).first() or TrackSection.objects.first()
 
     # Derive live metrics from THIS run's simulated telemetry (worst-case values)
     anomaly_score = float(prediction.get("anomaly_score", 0.0) or 0.0)

@@ -23,6 +23,7 @@
     <!-- SETUP FORM — source / destination + start button             -->
     <!-- ============================================================= -->
     <div class="sim-setup" id="sim-setup">
+        {% csrf_token %}
         <div class="sim-field">
             <label for="sim-source">Source Station</label>
             <input type="text" id="sim-source" placeholder="e.g. New Delhi" autocomplete="off" list="sim-station-list">
@@ -30,6 +31,16 @@
         <div class="sim-field">
             <label for="sim-destination">Destination Station</label>
             <input type="text" id="sim-destination" placeholder="e.g. Mumbai Central" autocomplete="off" list="sim-station-list">
+        </div>
+        <div class="sim-field">
+            <label for="sim-condition">Track Condition</label>
+            <select id="sim-condition" class="sim-select" style="background: var(--bg-surface-2, #1e293b); color: var(--text-primary, #f8fafc); border: 1px solid var(--border-color, #334155); border-radius: 8px; padding: 10px 14px; font-size: 14px; outline: none; width: 100%;">
+                <option value="auto">Auto (Smart AI Detection)</option>
+                <option value="nominal">Optimal Track Health (Nominal)</option>
+                <option value="thermal_buckle">High Thermal Buckling Risk (Hot Section)</option>
+                <option value="gauge_widening">Ballast Settle & Gauge Widening</option>
+                <option value="high_vibration">Rail Joint Wear & High Vibration</option>
+            </select>
         </div>
         <button class="sim-start-btn" id="sim-start-btn">🚆 Let Our Journey Begin</button>
         <div class="sim-error" id="sim-error"></div>

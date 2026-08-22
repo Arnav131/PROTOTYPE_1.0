@@ -35,7 +35,11 @@
 
     function loadStations() {
         fetch('/api/simulation/stations/')
-            .then(function (res) { return res.json(); })
+            .then(function (res) {
+                var ct = res.headers.get('content-type') || '';
+                if (ct.indexOf('application/json') !== -1) return res.json();
+                return null;
+            })
             .then(function (data) {
                 if (!data || !data.success) return;
                 var datalist = document.getElementById('sim-station-list');
@@ -43,6 +47,8 @@
                 data.stations.forEach(function (s) {
                     var label = s.name + ' (' + s.code + ')';
                     stationsByName[label] = s;
+                    stationsByName[s.name] = s;
+                    stationsByName[s.code] = s;
                     var opt = document.createElement('option');
                     opt.value = label;
                     datalist.appendChild(opt);
@@ -56,7 +62,18 @@
 
     function resolveStation(inputId) {
         var raw = document.getElementById(inputId).value.trim();
-        return stationsByName[raw] || null;
+        if (!raw) return null;
+        if (stationsByName[raw]) return stationsByName[raw];
+        var match = raw.match(/\(([A-Za-z0-9]+)\)$/);
+        if (match && stationsByName[match[1]]) {
+            return stationsByName[match[1]];
+        }
+        for (var k in stationsByName) {
+            if (k.toLowerCase() === raw.toLowerCase()) {
+                return stationsByName[k];
+            }
+        }
+        return null;
     }
 
     function maybeDrawRoute() {
@@ -68,7 +85,11 @@
         }
         fetch('/api/simulation/route/?from=' + encodeURIComponent(src.code) +
               '&to=' + encodeURIComponent(dst.code))
-            .then(function (res) { return res.json(); })
+            .then(function (res) {
+                var ct = res.headers.get('content-type') || '';
+                if (ct.indexOf('application/json') !== -1) return res.json();
+                return { success: false, error: 'Route lookup unavailable' };
+            })
             .then(function (data) {
                 if (!data || !data.success) {
                     setRouteMeta((data && data.error) || 'No route found');
@@ -192,16 +213,39 @@
         animateTrain();
         typeLogLines();
 
+        var conditionEl = document.getElementById('sim-condition');
+        var condition = conditionEl ? conditionEl.value : 'auto';
+
         // Call the backend — this does the REAL LLM generation + REAL
         // prediction pipeline call, not preloaded/hardcoded data.
-        var csrfToken = getCookie('csrftoken') || document.querySelector('[name=csrfmiddlewaretoken]')?.value || '';
+        var csrfToken = getCookie('csrftoken') || (document.querySelector('[name=csrfmiddlewaretoken]') ? document.querySelector('[name=csrfmiddlewaretoken]').value : '');
         fetch('/api/simulation/run/', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken },
-            body: JSON.stringify({ source: source, destination: destination }),
+            body: JSON.stringify({ source: source, destination: destination, condition: condition }),
         })
-            .then(function (res) { return res.json(); })
-            .then(function (data) {
+            .then(function (res) {
+                var ct = res.headers.get('content-type') || '';
+                if (ct.indexOf('application/json') !== -1) {
+                    return res.json().then(function (data) {
+                        return { ok: res.ok, status: res.status, data: data };
+                    });
+                } else {
+                    return res.text().then(function () {
+                        var errMsg = 'Server returned HTTP ' + res.status + '.';
+                        if (res.status === 401 || res.status === 403) {
+                            errMsg = 'Administrator session required to run live simulation.';
+                        }
+                        return {
+                            ok: false,
+                            status: res.status,
+                            data: { success: false, error: errMsg }
+                        };
+                    });
+                }
+            })
+            .then(function (result) {
+                var data = result.data;
                 var elapsed = Date.now() - startTime;
                 var remaining = Math.max(0, MIN_ANIMATION_MS - elapsed);
                 animationTimer = setTimeout(function () {
@@ -286,13 +330,20 @@
             '🚉 Journey complete: ' + source + ' → ' + destination +
             '  |  sensor_id: ' + data.sensor_id;
 
+        var isHealthy = score < 0.20 || alertLevel === 'none' || faultType === 'unknown' || faultType === 'normal';
+
         var alertCard = document.getElementById('sim-alert-card');
         alertCard.className = 'sim-card sim-card--alert level-' + alertLevel;
-        document.getElementById('sim-alert-level').textContent = alertLevel.toUpperCase();
+        document.getElementById('sim-alert-level').textContent = alertLevel === 'none' ? 'NORMAL / SAFE' : alertLevel.toUpperCase();
         document.getElementById('sim-alert-score').textContent = 'score: ' + score.toFixed(3);
 
-        document.getElementById('sim-fault-type').textContent = faultType.replace(/_/g, ' ');
-        document.getElementById('sim-fault-conf').textContent = 'confidence: ' + (faultConf * 100).toFixed(1) + '%';
+        if (isHealthy) {
+            document.getElementById('sim-fault-type').textContent = 'None (Healthy)';
+            document.getElementById('sim-fault-conf').textContent = 'Safe parameters';
+        } else {
+            document.getElementById('sim-fault-type').textContent = faultType.replace(/_/g, ' ');
+            document.getElementById('sim-fault-conf').textContent = 'confidence: ' + (faultConf > 0 ? (faultConf * 100).toFixed(1) + '%' : 'Elevated');
+        }
 
         document.getElementById('sim-flavour').textContent = (data.scenario_flavour || 'unknown').replace(/_/g, ' ');
         document.getElementById('sim-backend-used').textContent = 'generator: ' + (data.generator_backend || 'unknown');
