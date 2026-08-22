@@ -7,11 +7,12 @@ vibration_rms, gauge_width) between a source and destination station,
 streaming live into the Rakshak AI prediction pipeline.
 
 Backends tried in order:
-    1. Google Gemini API   (GEMINI_API_KEY or GOOGLE_API_KEY env var)
-    2. Anthropic API       (ANTHROPIC_API_KEY env var)
-    3. OpenAI API          (OPENAI_API_KEY env var)
-    4. Local Ollama LLM    (Ollama running at localhost:11434)
-    5. Dynamic Physics-Based IoT RNG Engine (Always available, generates
+    1. xAI Grok API        (GROK_API_KEY or XAI_API_KEY env var)
+    2. Google Gemini API   (GEMINI_API_KEY or GOOGLE_API_KEY env var)
+    3. Anthropic API       (ANTHROPIC_API_KEY env var)
+    4. OpenAI API          (OPENAI_API_KEY env var)
+    5. Local Ollama LLM    (Ollama running at localhost:11434)
+    6. Dynamic Physics-Based IoT RNG Engine (Always available, generates
        statistically & physically grounded healthy IoT telemetry)
 
 Output is always a list of exactly WINDOW_SIZE dicts:
@@ -155,6 +156,40 @@ def _generate_anomalous_physics_iot_rng(source: str, destination: str):
             "vibration_rms": round(vib, 3),
             "gauge_width": round(gauge, 2),
         })
+    return readings, flavour_name, flavour_desc
+
+# ---------------------------------------------------------------------------
+# xAI Grok API backend
+# ---------------------------------------------------------------------------
+def _generate_grok(source: str, destination: str, api_key: str, model: str = None):
+    flavour_name, flavour_desc = _pick_nominal_scenario(source, destination)
+    prompt = _build_llm_prompt(source, destination, flavour_desc)
+
+    model_name = model or os.environ.get("GROK_MODEL") or os.environ.get("XAI_MODEL") or "grok-2-latest"
+
+    resp = requests.post(
+        "https://api.x.ai/v1/chat/completions",
+        headers={
+            "Authorization": f"Bearer {api_key}",
+            "Content-Type": "application/json",
+        },
+        json={
+            "model": model_name,
+            "messages": [
+                {
+                    "role": "system",
+                    "content": "You are a realistic railway IoT telemetry simulation generator. You must output only a valid JSON array of sensor readings as requested."
+                },
+                {"role": "user", "content": prompt}
+            ],
+            "temperature": 0.4,
+        },
+        timeout=20,
+    )
+    resp.raise_for_status()
+    data = resp.json()
+    text = data["choices"][0]["message"]["content"]
+    readings = _parse_llm_json(text)
     return readings, flavour_name, flavour_desc
 
 
@@ -306,7 +341,7 @@ def _parse_llm_json(text: str):
 def generate_journey(source: str, destination: str, patrol_mode: bool = False):
     """
     Returns (readings, flavour_name, flavour_description, source_used).
-    source_used is "gemini", "anthropic", "openai_compatible", "ollama", "physics_iot_rng",
+    source_used is "grok", "gemini", "anthropic", "openai_compatible", "ollama", "physics_iot_rng",
     or "physics_iot_rng_anomalous".
     """
     # In patrol mode, 30% chance of anomalous readings
@@ -314,9 +349,17 @@ def generate_journey(source: str, destination: str, patrol_mode: bool = False):
         readings, fn, fd = _generate_anomalous_physics_iot_rng(source, destination)
         return readings, fn, fd, "physics_iot_rng_anomalous"
 
+    grok_key = os.environ.get("GROK_API_KEY") or os.environ.get("XAI_API_KEY")
     gemini_key = os.environ.get("GEMINI_API_KEY") or os.environ.get("GOOGLE_API_KEY")
     anthropic_key = os.environ.get("ANTHROPIC_API_KEY")
     openai_key = os.environ.get("OPENAI_API_KEY")
+
+    if grok_key:
+        try:
+            readings, flavour_name, flavour_desc = _generate_grok(source, destination, grok_key)
+            return readings, flavour_name, flavour_desc, "grok"
+        except Exception as e:
+            logger.warning(f"[simulation] Grok generation failed, falling back: {e}")
 
     if gemini_key:
         try:
