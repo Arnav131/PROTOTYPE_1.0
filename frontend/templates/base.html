@@ -16,7 +16,7 @@
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="">
     
     <!-- Rakshak stylesheet -->
-    <link rel="stylesheet" href="{% static 'css/dashboard.css' %}?v=10">
+    <link rel="stylesheet" href="{% static 'css/dashboard.css' %}?v=6">
     
     <!-- Prevent flash of wrong theme — runs before any paint -->
     <script>
@@ -36,8 +36,8 @@
             <div class="sidebar-header">
                 <div class="sidebar-brand">
                     <svg class="sidebar-logo" width="28" height="28" viewBox="0 0 28 28" fill="none">
-                        <path d="M14 1L3 6v7c0 7.3 4.6 11.7 11 13.3C20.4 24.7 25 20.3 25 13V6L14 1z" fill="#06d6a0"/>
-                        <text x="14" y="18" text-anchor="middle" fill="#07080d" font-family="Inter" font-weight="700" font-size="13">R</text>
+                        <path d="M14 1L3 6v7c0 7.3 4.6 11.7 11 13.3C20.4 24.7 25 20.3 25 13V6L14 1z" fill="#2563EB"/>
+                        <text x="14" y="18" text-anchor="middle" fill="white" font-family="Inter" font-weight="700" font-size="13">R</text>
                     </svg>
                     <span class="sidebar-brand-text">{{ project_name }}</span>
                 </div>
@@ -111,26 +111,11 @@
             </div>
         </aside>
 
-        <!-- ============================================================== -->
-        <!-- MAIN CONTENT AREA                                              -->
-        <!-- ============================================================== -->
+        <!-- MAIN CONTENT -->
         <div class="app-content-wrapper">
-            <header class="app-header">
-                <div class="live-clock" id="live-clock">
-                    <span class="clock-time" id="clock-time"></span>
-                    <span class="clock-date" id="clock-date"></span>
-                    <span class="clock-timezone">IST</span>
-                </div>
-            </header>
-
             <main class="control-main">
                 {% block content %}{% endblock %}
             </main>
-
-            <footer class="control-footer">
-                <span>{{ project_name }} v{{ project_version|default:"1.0" }}</span>
-                <span>AI-Powered Predictive Rail Maintenance</span>
-            </footer>
         </div>
     </div>
     
