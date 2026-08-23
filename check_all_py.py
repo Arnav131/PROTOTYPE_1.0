@@ -35,4 +35,5 @@ def check_python_files(repo_path):
         print("All Python files are syntactically valid.")
 
 if __name__ == "__main__":
-    check_python_files(r"d:\github\Rakshak")
+    repo_dir = sys.argv[1] if len(sys.argv) > 1 else os.path.abspath(os.path.dirname(__file__))
+    check_python_files(repo_dir)

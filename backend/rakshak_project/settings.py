@@ -28,9 +28,18 @@ load_dotenv(BASE_DIR / '.env')
 SECRET_KEY = os.environ.get('SECRET_KEY', 'rakshak-phase1-prototype-key-change-in-production')
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = os.environ.get('DEBUG', 'True') == 'True'
+# Fails CLOSED: an unset DEBUG variable disables debug mode instead of
+# leaking settings/SQL traces in production. Local development keeps
+# DEBUG=True explicitly via .env.
+DEBUG = os.environ.get('DEBUG', 'False').strip().lower() in ('1', 'true', 'yes', 'on')
 
-ALLOWED_HOSTS = os.environ.get('ALLOWED_HOSTS', '*').split(',')
+_raw_hosts = os.environ.get('ALLOWED_HOSTS', '*')
+if _raw_hosts == '*':
+    ALLOWED_HOSTS = ['*']
+else:
+    ALLOWED_HOSTS = [h.strip() for h in _raw_hosts.split(',') if h.strip()]
+    if 'testserver' not in ALLOWED_HOSTS:
+        ALLOWED_HOSTS.append('testserver')
 
 # ---------------------------------------------------------------------------
 # Application definition
