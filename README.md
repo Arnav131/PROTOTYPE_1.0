@@ -1,268 +1,141 @@
-# 🚆 Rakshak - Railway Maintenance Dashboard Prototype
+# 🚆 Rakshak — Railway Predictive Maintenance Dashboard
 
-Rakshak is a prototype Railway Maintenance Dashboard built using Django. It provides an interactive interface for monitoring railway assets, maintenance alerts, routes, sensors, and support tickets. The project is designed to simulate a railway infrastructure monitoring system using seeded demo data.
-
----
-
-# Features
-
-- Dashboard with railway maintenance overview
-- Interactive railway route map
-- Alert Management
-- Ticket Management
-- Sensor Monitoring
-- PostgreSQL database support
-- REST API backend
-- Preloaded demo data for testing
+Rakshak is a Django-based prototype for railway predictive maintenance. It provides an
+interactive dashboard for monitoring assets, routes, sensors, maintenance alerts, support
+tickets, and an AI-powered live simulation of IoT sensor telemetry.
 
 ---
 
-# Tech Stack
+## Features
 
-- Python 3.10+
-- Django 4.2+
-- Supabase/PostgreSQL via required `DATABASE_URL`
-- PyTorch 2.2+
-- NumPy
-- scikit-learn
-- HTML
-- CSS
-- JavaScript
-- Leaflet.js (Map)
+- Dashboard with railway maintenance overview (KPIs, charts)
+- Interactive railway route map (Leaflet.js) with simulated train movement
+- Alert management with severity/status filtering
+- Ticket management with priority/status filtering
+- Sensor monitoring and reading history
+- Live Simulation page (staff-only): synthetic 16-reading IoT journeys fed into the ML prediction pipeline
+- PostgreSQL (Supabase) database — SQLite is intentionally disabled
+- Preloaded demo data via seed commands
 
----
+## Tech Stack
 
-# Project Structure
+| Layer | Technology |
+|---|---|
+| Backend | Python 3.10+, Django 4.2 |
+| Database | Supabase / PostgreSQL |
+| Frontend | HTML, CSS, vanilla JS, Chart.js, Leaflet.js |
+| ML | PyTorch 2.2+, NumPy, scikit-learn |
+| AI generators | Gemini → Grok → Anthropic → OpenAI → Ollama → Physics RNG fallback chain |
+
+## Project Structure
 
 ```
 PROTOTYPE_1.0/
-│
-├── backend/
-│   ├── railway/
-│   ├── templates/
-│   ├── static/
-│   ├── manage.py
-│   └── requirements.txt
-│
-├── README.md
-├── Codebase.md
-└── Tree.md
+├── backend/            # Django project + business logic (railway models, sensors, alerts, tickets, map_view)
+├── frontend/           # Templates + static CSS/JS (server-rendered, no build step)
+├── ai_engin/           # AI prediction engine integration
+├── notebooks/          # ML training pipeline (Colab / PyTorch)
+├── docs/               # Architecture docs + phase reports
+├── demo_assets/        # Demo walkthrough script
+├── .env.example        # Environment variable template
+├── requirements.txt    # Python dependencies
+└── INSTRUCTIONS.md     # Step-by-step setup guide
 ```
 
----
+**Entry point:** `backend/manage.py`
+**Config:** `backend/rakshak_project/settings.py`
+**Routing:** `backend/rakshak_project/urls.py`
 
-# Prerequisites
-
-Make sure the following software is installed:
-
-- Python 3.10 or above
-- A Supabase project with a Postgres database
-- Git
-- pip
-
----
-
-# Clone the Repository
+## Quick Start
 
 ```bash
+# 1. Clone and enter the repo
 git clone https://github.com/<your-username>/<repository-name>.git
-cd <repository-name>/backend
-```
+cd <repository-name>
 
----
-
-# Create Virtual Environment (Recommended)
-
-### Windows
-
-```bash
+# 2. Create virtual environment
 python -m venv .venv
-.venv\Scripts\activate
-```
+.venv\Scripts\activate          # Windows
+# source .venv/bin/activate     # Linux / macOS
 
-### Linux / macOS
-
-```bash
-python3 -m venv .venv
-source .venv/bin/activate
-```
-
----
-
-# Install Dependencies
-
-The AI prediction feature is a core product capability, not an optional extra. Install the full ML stack before running the dashboard or simulation flows:
-
-```bash
+# 3. Install dependencies
 pip install -r requirements.txt
-```
 
-This includes Django, PostgreSQL driver support, NumPy, PyTorch, and scikit-learn so the local pickle-based prediction pipeline can load correctly.
+# 4. Configure environment
+copy .env.example .env          # then set DATABASE_URL from your Supabase project
 
----
-
-# Supabase Database Setup
-
-1. Create or open a Supabase project.
-2. In Supabase, open **Connect** and copy the Postgres connection string.
-3. For local Django development, prefer the **Session pooler** URL because it works on IPv4 networks.
-4. Copy `.env.example` to `.env`.
-5. Set `DATABASE_URL` in `.env`:
-   `DATABASE_URL=postgresql://postgres.<PROJECT_REF>:<PASSWORD>@aws-<REGION>.pooler.supabase.com:5432/postgres?sslmode=require`
-
-SQLite is intentionally disabled. If `DATABASE_URL` is missing or points to SQLite, Django raises a setup error before startup.
-
----
-
-# Apply Database Migrations
-
-```bash
-python manage.py migrate
-```
-
----
-
-# Seed the Database
-
-Run the following commands **in the given order**:
-
-
-```bash
+# 5. Migrate and seed (run inside backend/)
 cd backend
-
-```
-```bash
+python manage.py migrate
 python manage.py seed_master_data
-```
-
-```bash
 python manage.py seed_routes
-```
-
-```bash
 python manage.py seed_sensors
-```
-
-```bash
 python manage.py seed_demo_data
-```
-
-```bash
 python manage.py seed_users
-```
 
-These commands populate the database with sample railway assets, routes, sensors, alerts, and tickets.
-
----
-
-# Run the Development Server
-
-```bash
+# 6. Run
 python manage.py runserver
 ```
 
-The application will start at:
+Open http://127.0.0.1:8000/
 
-```
-http://127.0.0.1:8000/
-```
+> Full details: see [INSTRUCTIONS.md](INSTRUCTIONS.md)
 
----
+## Pages
 
-# Available Pages
+| URL | Page |
+|---|---|
+| `/` | Dashboard |
+| `/alerts/` | Alerts |
+| `/tickets/` | Tickets |
+| `/map/` | Railway Map |
+| `/simulation/` | Live Simulation (staff-only) |
+| `/sensors/` | Sensors |
 
-- Dashboard
-- Alerts
-- Tickets
-- Railway Map
-- Simulation (staff-only — live synthetic IoT telemetry generator with Grok / Gemini / Anthropic / OpenAI / Physics RNG)
-- Sensors
+## API Endpoints
 
----
+JSON APIs are served by `backend/map_view/api_views.py` using plain `JsonResponse`:
 
-# Live Simulation & AI Generator Setup
+- `/api/stations/` — station markers + health
+- `/api/routes/` — track polylines
+- `/api/alerts/` — active/acknowledged alerts
+- `/api/tickets/` — open tickets
+- `/api/summary/` — map stats counts
+- `/api/trains/` — simulated train positions
 
-The Simulation feature (`/simulation/`) generates a fresh 16-reading IoT sensor journey on demand and feeds it into the live Rakshak prediction pipeline.
+## Environment Variables
 
-To power scenario generation using **xAI Grok API**:
-1. Obtain an API key from [xAI Console](https://console.x.ai/).
-2. Add your key to `.env`:
-   ```bash
-   GROK_API_KEY=xai-your-key-here
-   GROK_MODEL=grok-2-latest
-   ```
-3. Fallback support is built-in: if Grok is unreachable or unconfigured, the system seamlessly tries Gemini, then Anthropic, OpenAI, Ollama, and finally the dynamic physics-based IoT RNG engine (Gemini → Grok → Anthropic → OpenAI → Ollama → Physics).
+Required in `.env` (see `.env.example`):
 
----
+| Variable | Purpose |
+|---|---|
+| `DATABASE_URL` | Supabase Postgres connection string (**required**) |
+| `SECRET_KEY` | Django secret key |
+| `DEBUG` | `True` locally, `False` in production |
+| `ALLOWED_HOSTS` | Comma-separated hostnames |
+| `GEMINI_API_KEY` / `GROK_API_KEY` / `ANTHROPIC_API_KEY` / `OPENAI_API_KEY` | Optional — simulation scenario generation (falls back through the chain to a physics RNG) |
 
-# Deployment
+SQLite is intentionally disabled: if `DATABASE_URL` is missing or points to SQLite,
+Django raises a setup error before startup.
 
-For production deployments, the application relies on environment variables.
-Ensure the deployment platform provides at minimum:
-- `DATABASE_URL`
-- `SECRET_KEY`
-- `DEBUG` (set to `False`)
-- `ALLOWED_HOSTS`
+## Development Workflow
 
----
-
-# API
-
-The project also exposes REST API endpoints through Django REST Framework for dashboard data and railway resources.
-
----
-
-# Demo Data
-
-The repository includes management commands that automatically generate realistic demo data for:
-
-- Railway Routes
-- Stations
-- Sensors
-- Maintenance Alerts
-- Tickets
-- Assets
-
-No manual database setup is required after running the seed commands.
-
----
-
-# Deployment
-
-Set the following environment variables in production or local development:
-
-```bash
-export DATABASE_URL="postgresql://postgres.<PROJECT_REF>:<PASSWORD>@aws-<REGION>.pooler.supabase.com:5432/postgres?sslmode=require"
-export SECRET_KEY="change-me-in-production"
-export DEBUG="False"
-export ALLOWED_HOSTS="localhost,127.0.0.1"
-```
-
-`DATABASE_URL` is required at runtime. `DEBUG` and `ALLOWED_HOSTS` are read from environment variables and fall back to local development defaults when unset.
-
----
-
-# Development Workflow
-
-Whenever database models are modified:
+After modifying models:
 
 ```bash
 python manage.py makemigrations
 python manage.py migrate
 ```
 
-If demo data needs to be regenerated, rerun the seed commands:
+To regenerate demo data, rerun the seed commands listed in Quick Start.
 
-```bash
-python manage.py seed_master_data
-python manage.py seed_routes
-python manage.py seed_sensors
-python manage.py seed_demo_data
-python manage.py seed_users
-```
+## Documentation
 
----
+- [Codebase.md](Codebase.md) — full codebase navigation map
+- [AI_ENGINE_GUIDE.md](AI_ENGINE_GUIDE.md) — AI engine details
+- [Tree.md](Tree.md) — file tree
+- [notebooks/SHARED_CONTRACT.md](notebooks/SHARED_CONTRACT.md) — ML training contract
 
-# License
+## License
 
-This project is intended as a prototype for demonstration and educational purposes.
+Prototype intended for demonstration and educational purposes.
