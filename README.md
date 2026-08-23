@@ -191,7 +191,7 @@ To power scenario generation using **xAI Grok API**:
    GROK_API_KEY=xai-your-key-here
    GROK_MODEL=grok-2-latest
    ```
-3. Fallback support is built-in: if Grok is unreachable or unconfigured, the system seamlessly tries Gemini, Anthropic, OpenAI, Ollama, and finally the dynamic physics-based IoT RNG engine.
+3. Fallback support is built-in: if Grok is unreachable or unconfigured, the system seamlessly tries Gemini, then Anthropic, OpenAI, Ollama, and finally the dynamic physics-based IoT RNG engine (Gemini → Grok → Anthropic → OpenAI → Ollama → Physics).
 
 ---
 
