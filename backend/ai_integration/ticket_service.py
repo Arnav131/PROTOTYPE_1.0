@@ -294,6 +294,8 @@ class TicketService:
         # ---------------------------------------------------------------
         """
         try:
+            from django.db.models import Count, Q
+
             from railway.models import MaintenanceTeam, TrackSection, Ticket
 
             section = TrackSection.objects.select_related(
@@ -308,38 +310,37 @@ class TicketService:
             if not division:
                 return None
 
-            # Find teams in the division
-            teams = MaintenanceTeam.objects.filter(
-                division=division,
-                is_active=True,
+            open_ticket_filter = Q(
+                tickets__status__in=[
+                    Ticket.Status.OPEN,
+                    Ticket.Status.ASSIGNED,
+                    Ticket.Status.IN_PROGRESS,
+                ]
             )
 
-            if not teams.exists():
-                # Fallback: any active team
-                teams = MaintenanceTeam.objects.filter(is_active=True)
+            def _least_loaded(queryset):
+                # Single query: annotate each team with its open-ticket count and
+                # pick the least loaded (ties broken by team_name for determinism).
+                # Replaces the previous per-team COUNT loop (an N+1 pattern).
+                return (
+                    queryset.annotate(
+                        open_count=Count("tickets", filter=open_ticket_filter)
+                    )
+                    .order_by("open_count", "team_name")
+                    .values_list("pk", flat=True)
+                    .first()
+                )
 
-            if not teams.exists():
-                return None
+            # Prefer teams in the same division; fall back to any active team.
+            best_team_pk = _least_loaded(
+                MaintenanceTeam.objects.filter(division=division, is_active=True)
+            )
+            if best_team_pk is None:
+                best_team_pk = _least_loaded(
+                    MaintenanceTeam.objects.filter(is_active=True)
+                )
 
-            # Pick the team with fewest open tickets
-            best_team = None
-            min_tickets = float("inf")
-
-            for team in teams:
-                open_count = Ticket.objects.filter(
-                    assigned_team=team,
-                    status__in=[
-                        Ticket.Status.OPEN,
-                        Ticket.Status.ASSIGNED,
-                        Ticket.Status.IN_PROGRESS,
-                    ],
-                ).count()
-
-                if open_count < min_tickets:
-                    min_tickets = open_count
-                    best_team = team
-
-            return best_team.pk if best_team else None
+            return best_team_pk
 
         except Exception as e:
             logger.warning(f"TicketService: Team lookup failed: {e}")

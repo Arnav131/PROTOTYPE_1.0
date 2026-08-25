@@ -5,7 +5,7 @@ Every function is scoped to a single patrol_code — enforcing Separation Logic.
 """
 import uuid
 from decimal import Decimal
-from django.db import transaction
+from django.db import IntegrityError, transaction
 from django.utils import timezone
 from .models import WorkerPatrolReport, PatrolCategoryRating
 from railway.models import TrackSection
@@ -22,17 +22,36 @@ def generate_patrol_code():
     return f"PTR-{year}-{count:04d}"
 
 
-@transaction.atomic
 def create_patrol_report(worker, track_section_id):
-    """Create a new isolated patrol case. Returns the patrol object."""
+    """Create a new isolated patrol case. Returns the patrol object.
+
+    The patrol_code is a human-readable sequential id (PTR-YYYY-NNNN) derived
+    from a COUNT, so two patrols started concurrently can compute the same
+    next number and collide on the unique constraint. We retry a few times,
+    each attempt in its own savepoint so a collision rolls back only that
+    attempt; generate_patrol_code() re-reads the (now higher) count on retry.
+    A DB sequence was rejected because it would be PostgreSQL-only and break
+    the SQLite dev/test fallback.
+    """
     track_section = TrackSection.objects.get(pk=track_section_id)
-    patrol = WorkerPatrolReport.objects.create(
-        patrol_code=generate_patrol_code(),
-        worker=worker,
-        track_section=track_section,
-        status=WorkerPatrolReport.Status.IN_PROGRESS,
-    )
-    return patrol
+
+    last_error = None
+    for _attempt in range(5):
+        try:
+            with transaction.atomic():
+                return WorkerPatrolReport.objects.create(
+                    patrol_code=generate_patrol_code(),
+                    worker=worker,
+                    track_section=track_section,
+                    status=WorkerPatrolReport.Status.IN_PROGRESS,
+                )
+        except IntegrityError as exc:
+            # Collision on patrol_code (or another unique field) — retry with
+            # a freshly computed code. Re-raised after the final attempt.
+            last_error = exc
+            continue
+
+    raise last_error
 
 
 @transaction.atomic
@@ -178,7 +197,9 @@ def submit_admin_decision(patrol_code, user, decision, notes="", speed_restricti
 def get_patrol_payload(patrol):
     """Serialize a single patrol report for API/template consumption."""
     ratings = []
-    for r in patrol.category_ratings.all().order_by("category"):
+    # Sort in Python so the prefetch_related("category_ratings") cache is reused
+    # instead of issuing a fresh ORDER BY query per patrol on the admin list.
+    for r in sorted(patrol.category_ratings.all(), key=lambda r: r.category):
         ratings.append({
             "category": r.category,
             "category_display": r.get_category_display(),

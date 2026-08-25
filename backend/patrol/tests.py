@@ -49,6 +49,32 @@ class WorkerPatrolTestCase(TestCase):
         code2 = services.generate_patrol_code()
         self.assertNotEqual(code1, code2)
 
+    def test_create_patrol_report_retries_on_code_collision(self):
+        """A patrol_code collision (simulating a concurrent start) must be
+        retried transparently, not surface as an IntegrityError."""
+        from unittest.mock import patch
+
+        # Pre-existing patrol occupying the code the first attempt will pick.
+        existing = WorkerPatrolReport.objects.create(
+            patrol_code="PTR-2026-0001",
+            worker=self.worker,
+            track_section=self.section,
+        )
+
+        # First call collides with the existing code, second call yields a
+        # fresh one -> create_patrol_report must swallow the collision and
+        # succeed on the retry.
+        with patch.object(
+            services,
+            "generate_patrol_code",
+            side_effect=["PTR-2026-0001", "PTR-2026-0002"],
+        ):
+            patrol = services.create_patrol_report(self.worker, self.section.pk)
+
+        self.assertEqual(patrol.patrol_code, "PTR-2026-0002")
+        self.assertNotEqual(patrol.pk, existing.pk)
+        self.assertEqual(WorkerPatrolReport.objects.count(), 2)
+
     def test_create_patrol_and_submit_ratings(self):
         patrol = services.create_patrol_report(self.worker, self.section.pk)
         self.assertEqual(patrol.status, WorkerPatrolReport.Status.IN_PROGRESS)

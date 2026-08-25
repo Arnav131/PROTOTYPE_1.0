@@ -196,8 +196,12 @@ def generate_sequence(
     delta = config["delta_per_step"]
     noise = config["noise_scale"]
 
-    if seed is not None:
-        random.seed(seed)
+    # Use a local RNG instance instead of mutating the process-global
+    # random state. Calling random.seed() on every request would reset the
+    # shared generator used elsewhere (e.g. simulation.generator) and is not
+    # thread-safe under concurrent requests. random.Random(None) still seeds
+    # from the OS entropy source, preserving the non-reproducible default.
+    rng = random.Random(seed)
 
     readings = []
     current = dict(base)
@@ -207,7 +211,7 @@ def generate_sequence(
         reading = {}
         for key in ["ambient_temp", "humidity", "vibration_rms", "gauge_width"]:
             # Progressive drift + Gaussian noise
-            value = current[key] + delta[key] + random.gauss(0, noise[key])
+            value = current[key] + delta[key] + rng.gauss(0, noise[key])
 
             # Clamp to physically valid ranges
             if key == "ambient_temp":

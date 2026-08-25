@@ -1,6 +1,18 @@
+import json
+from decimal import Decimal
+
 from django.contrib.auth import get_user_model
 from django.test import Client, TestCase
 from unittest.mock import patch
+
+from railway.models import (
+    Alert,
+    AuditLog,
+    Division,
+    Station,
+    TrackSection,
+    Zone,
+)
 
 User = get_user_model()
 
@@ -100,3 +112,84 @@ class SensorsApiTests(TestCase):
         self.assertEqual(response.status_code, 200)
         data = response.json()
         self.assertIn('status', data)
+
+
+class PredictAlertIntegrationTests(TestCase):
+    """
+    Verifies /api/predict/ routes alert creation through the shared
+    AlertService (item 1 of the follow-up pass): a warning/critical
+    prediction with a track_section_id must create an Alert AND an
+    append-only AuditLog row — the compliance behaviour the previous
+    duplicate path omitted.
+    """
+
+    def setUp(self):
+        self.client = Client()
+        self.staff = User.objects.create_user(
+            username="ctrl", password="secret123", is_staff=True
+        )
+        zone = Zone.objects.create(code="NR", name="Northern Railway")
+        div = Division.objects.create(zone=zone, code="DLI", name="Delhi")
+        s1 = Station.objects.create(
+            station_code="AAA", station_name="A", division=div,
+            latitude=Decimal("28.6"), longitude=Decimal("77.2"),
+        )
+        s2 = Station.objects.create(
+            station_code="BBB", station_name="B", division=div,
+            latitude=Decimal("28.7"), longitude=Decimal("77.3"),
+        )
+        self.section = TrackSection.objects.create(
+            section_code="TRK-1", start_station=s1, end_station=s2,
+        )
+
+    def test_predict_with_anomaly_creates_alert_and_audit_row(self):
+        self.client.force_login(self.staff)
+        # Extreme gauge deviation (1695 - 1676 = 19mm > 15mm) forces the
+        # rule layer to a critical / is_anomaly=True result even in the
+        # models-not-loaded (rules-only) test environment.
+        payload = {
+            "ambient_temp": 30.0,
+            "humidity": 45.0,
+            "vibration_rms": 2.0,
+            "gauge_width": 1695.0,
+            "track_section_id": self.section.pk,
+        }
+        response = self.client.post(
+            "/api/predict/", data=json.dumps(payload),
+            content_type="application/json",
+        )
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+        self.assertTrue(data["prediction"]["is_anomaly"])
+        self.assertTrue(data["alert_created"])
+        # alert_id is now the integer PK (consistent with /api/ai/predict/).
+        self.assertIsInstance(data["alert_id"], int)
+
+        self.assertEqual(Alert.objects.count(), 1)
+        # AlertService writes an append-only ML_PIPELINE audit record — the
+        # traceability guarantee the old _maybe_create_alert path lacked.
+        self.assertTrue(
+            AuditLog.objects.filter(
+                entity_type="alert",
+                actor_type=AuditLog.ActorType.ML_PIPELINE,
+            ).exists()
+        )
+
+    def test_predict_without_track_section_creates_no_alert(self):
+        self.client.force_login(self.staff)
+        payload = {
+            "ambient_temp": 30.0,
+            "humidity": 45.0,
+            "vibration_rms": 2.0,
+            "gauge_width": 1695.0,
+            # no track_section_id -> alert creation is skipped
+        }
+        response = self.client.post(
+            "/api/predict/", data=json.dumps(payload),
+            content_type="application/json",
+        )
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+        self.assertFalse(data["alert_created"])
+        self.assertIsNone(data["alert_id"])
+        self.assertEqual(Alert.objects.count(), 0)

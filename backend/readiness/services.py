@@ -37,34 +37,45 @@ def evaluate_case_telemetry(case: OperationalReadinessCase) -> dict:
     temp_passed = MIN_SAFE_TEMPERATURE <= temp <= MAX_SAFE_TEMPERATURE
     ai_passed = ai_risk <= MAX_SAFE_AI_RISK_SCORE
     
-    # Check section active critical alerts
-    active_alerts_count = 0
-    if case.track_section:
+    # Check section active critical alerts. Prefer a queryset annotation
+    # (set by readiness_page / api_get_cases) so a dashboard rendering N cases
+    # does not fire one COUNT query per case; fall back to a direct query for
+    # callers that don't annotate (e.g. the decision/sign-off write paths).
+    annotated_alerts = getattr(case, "_active_critical_alerts", None)
+    if annotated_alerts is not None:
+        active_alerts_count = annotated_alerts
+    elif case.track_section:
         active_alerts_count = Alert.objects.filter(
             track_section=case.track_section,
             status="active",
-            severity__in=["critical", "warning"]
+            severity__in=["critical", "warning"],
         ).count()
-        
+    else:
+        active_alerts_count = 0
+
     alerts_passed = active_alerts_count == 0
     all_telemetry_passed = vib_passed and temp_passed and ai_passed and alerts_passed
-    
-    # Calculate checklist progress
-    checklist_items = case.checklist_items.all()
-    total_items = checklist_items.count()
-    passed_items = checklist_items.filter(status="passed").count()
-    failed_items = checklist_items.filter(status="failed").count()
-    pending_items = checklist_items.filter(status="pending").count()
+
+    # Checklist progress — count in Python over the prefetched relation so a
+    # dashboard rendering N cases doesn't fire 4 COUNT queries per case. When
+    # the caller used prefetch_related("checklist_items") this adds zero
+    # queries; otherwise it costs a single query instead of four.
+    checklist_items = list(case.checklist_items.all())
+    total_items = len(checklist_items)
+    passed_items = sum(1 for i in checklist_items if i.status == "passed")
+    failed_items = sum(1 for i in checklist_items if i.status == "failed")
+    pending_items = sum(1 for i in checklist_items if i.status == "pending")
     
     checklist_score = (passed_items / total_items * 60.0) if total_items > 0 else 0.0
     telemetry_score = 40.0 if all_telemetry_passed else (20.0 if (vib_passed and temp_passed) else 0.0)
     composite_score = Decimal(str(round(checklist_score + telemetry_score, 2)))
-    
-    # Update case readiness score if changed
-    if case.readiness_score != composite_score:
-        case.readiness_score = composite_score
-        case.save(update_fields=["readiness_score", "updated_at"])
-        
+
+    # NOTE: this function is now PURE — it never writes to the database, so it
+    # is safe to call from read/render paths (get_case_payload, the dashboard).
+    # Persisting the recomputed readiness_score is done by
+    # persist_readiness_score(), invoked only from the sign-off and decision
+    # write paths.
+
     return {
         "vibration_rms": float(vib),
         "vibration_passed": vib_passed,
@@ -85,6 +96,24 @@ def evaluate_case_telemetry(case: OperationalReadinessCase) -> dict:
         "checklist_percentage": round((passed_items / total_items * 100) if total_items > 0 else 0),
         "composite_score": float(composite_score),
     }
+
+
+def persist_readiness_score(case: OperationalReadinessCase) -> dict:
+    """
+    Recompute the case telemetry and persist readiness_score if it changed.
+
+    This is the write-path counterpart to the (now pure) evaluate_case_telemetry.
+    Call it only from actual mutations (checklist sign-off, controller decision)
+    — never from render/read paths, which must not issue writes on GET.
+
+    Returns the evaluation dict so callers can reuse the computed metrics.
+    """
+    eval_result = evaluate_case_telemetry(case)
+    composite = Decimal(str(eval_result["composite_score"]))
+    if case.readiness_score != composite:
+        case.readiness_score = composite
+        case.save(update_fields=["readiness_score", "updated_at"])
+    return eval_result
 
 
 @transaction.atomic
@@ -146,7 +175,11 @@ def sign_off_checklist_item(
         else:
             case.workflow_status = OperationalReadinessCase.WorkflowStatus.FIELD_VERIFICATION
         case.save(update_fields=["workflow_status", "updated_at"])
-        
+
+    # Write path: the sign-off changed the checklist, so refresh the persisted
+    # readiness_score here rather than relying on a GET render to do it.
+    persist_readiness_score(case)
+
     return item
 
 
@@ -166,8 +199,9 @@ def submit_controller_decision(
     Enforces pre-action safety check before granting track reopening or departure clearance.
     """
     case = OperationalReadinessCase.objects.select_for_update().get(case_code=case_code)
-    eval_result = evaluate_case_telemetry(case)
-    
+    # Write path: recompute AND persist the readiness_score for this decision.
+    eval_result = persist_readiness_score(case)
+
     # Validate preconditions if ready without override
     if decision == OperationalReadinessCase.ReadinessDecision.READY and not is_override:
         if not eval_result["all_telemetry_passed"]:
@@ -233,7 +267,9 @@ def get_case_payload(case: OperationalReadinessCase) -> dict:
     eval_result = evaluate_case_telemetry(case)
     
     checklist_data = []
-    for item in case.checklist_items.all().order_by("sequence"):
+    # Sort in Python so the prefetch_related("checklist_items") cache is reused
+    # instead of issuing a fresh ORDER BY query per case on the dashboard.
+    for item in sorted(case.checklist_items.all(), key=lambda i: i.sequence):
         checklist_data.append({
             "id": item.pk,
             "sequence": item.sequence,
@@ -252,7 +288,11 @@ def get_case_payload(case: OperationalReadinessCase) -> dict:
         })
         
     audit_data = []
-    for aud in case.audit_records.all().order_by("-occurred_at")[:8]:
+    # Sort/slice in Python to reuse the prefetch_related("audit_records") cache.
+    recent_audit = sorted(
+        case.audit_records.all(), key=lambda a: a.occurred_at, reverse=True
+    )[:8]
+    for aud in recent_audit:
         audit_data.append({
             "id": aud.pk,
             "record_type": aud.record_type,

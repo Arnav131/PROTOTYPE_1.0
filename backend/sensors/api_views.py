@@ -11,7 +11,6 @@ The frontend (or any HTTP client) calls these to get AI predictions.
 """
 import json
 import logging
-from decimal import Decimal
 
 from django.http import JsonResponse
 from django.utils import timezone
@@ -20,26 +19,9 @@ from django.contrib.auth.decorators import login_required
 from django.views.decorators.cache import never_cache
 
 from ai_integration.prediction_service import PredictionService
-from ai_integration.severity import score_to_alert_level
-from ai_integration.alert_service import has_recent_duplicate_alert, DEDUP_WINDOW_MINUTES
+from ai_integration.alert_service import AlertService
+
 logger = logging.getLogger("rakshak.api.predict")
-
-
-def _generate_alert_code():
-    """
-    Generate a unique, collision-resistant alert code.
-
-    Same format as AlertService._generate_alert_code (ALT-YYYYMMDD-XXXXXX)
-    so every alert in the system follows one recognizable pattern.
-    Uses a UUID suffix instead of an in-memory counter: counters restart at
-    0001 on every process restart / per-request instantiation and collide
-    with the Alert.alert_code unique constraint.
-    """
-    import uuid
-
-    now = timezone.now()
-    unique_suffix = uuid.uuid4().hex[:6].upper()
-    return f"ALT-{now.strftime('%Y%m%d')}-{unique_suffix}"
 
 
 def _validate_sensor_input(data):
@@ -77,73 +59,33 @@ def _validate_sensor_input(data):
     return values, None
 
 
-def _maybe_create_alert(prediction, track_section_id=None, sensor_id=None):
+def _create_alert_from_response(response, track_section_id, sensor_id=None):
     """
-    Create an Alert record in the DB if the prediction is warning or critical.
+    Create an Alert from a PredictionResponse via the shared AlertService.
 
-    Returns the alert_code string if created, None otherwise.
+    Delegates to AlertService so alert-code generation, severity mapping,
+    duplicate suppression, and AuditLog writing all follow the single
+    canonical path used by the simulation, patrol, and journey flows —
+    instead of re-implementing Alert creation here. Mirrors the alert branch
+    of IncidentOrchestrator (anomaly first, then predictive) but intentionally
+    does NOT create tickets: the /api/predict/ endpoints are alert-only.
+
+    Returns the Alert primary key if one was created, otherwise None.
     """
-    alert_level = prediction.get("alert_level", "none")
-    if alert_level == "none":
-        return None
-
-    if not track_section_id:
-        return None
-
-    try:
-        from railway.models import Alert
-
-        # Dedup: suppress repeat alerts for the same section inside the
-        # shared dedup window (same rule as AlertService).
-        if has_recent_duplicate_alert(track_section_id, Alert.AlertType.ANOMALY):
-            logger.info(
-                f"Suppressing duplicate anomaly alert for section="
-                f"{track_section_id} within {DEDUP_WINDOW_MINUTES}min window"
-            )
-            return None
-
-        # Derive severity from the anomaly score using centralized
-        # thresholds (severity.py) so this path agrees with AlertService.
-        anomaly_score = prediction.get("anomaly_score", 0.0)
-        level = score_to_alert_level(float(anomaly_score))
-        severity = {
-            "critical": "critical",
-            "warning": "warning",
-        }.get(level, "info")
-        if alert_level == "critical" and severity != "critical":
-            # Never downgrade an explicit model-critical call.
-            severity = "critical"
-
-        alert_code = _generate_alert_code()
-        fault_type = prediction.get("fault_type", "unknown")
-        fault_confidence = prediction.get("fault_confidence", 0.0)
-        explanation = prediction.get("metadata", {}).get("explanation", prediction.get("explanation", ""))
-
-        alert = Alert.objects.create(
-            alert_code=alert_code,
+    service = AlertService()
+    if response.is_anomaly:
+        return service.create_anomaly_alert(
+            response=response,
             track_section_id=track_section_id,
             sensor_id=sensor_id,
-            alert_type="anomaly",
-            severity=severity,
-            title=f"AI Detection: {fault_type} (score: {anomaly_score:.2f})",
-            description=(
-                f"Pipeline prediction:\n"
-                f"  Alert level: {alert_level}\n"
-                f"  Anomaly score: {anomaly_score:.4f}\n"
-                f"  Fault type: {fault_type} ({fault_confidence:.1%})\n"
-                f"  Explanation: {explanation}\n"
-                f"  Model: {prediction.get('provider_name', prediction.get('model_used', 'unknown'))}"
-            ),
-            confidence_score=Decimal(str(round(anomaly_score, 4))),
-            generated_at=timezone.now(),
-            generated_by="ml_model",
         )
-        logger.info(f"Created alert {alert_code} (severity={severity})")
-        return alert_code
-
-    except Exception as e:
-        logger.error(f"Failed to create alert: {e}", exc_info=True)
-        return None
+    if response.needs_alert:
+        return service.create_predictive_alert(
+            response=response,
+            track_section_id=track_section_id,
+            sensor_id=sensor_id,
+        )
+    return None
 
 
 @login_required
@@ -212,17 +154,19 @@ def api_predict(request):
         **values
     )
     prediction = prediction_response.to_dict()
-    alert_code = None
+    alert_id = None
 
     create_alert = data.get("create_alert", True)
     if create_alert and track_section_id:
-        alert_code = _maybe_create_alert(prediction, track_section_id, sensor_id)
+        alert_id = _create_alert_from_response(
+            prediction_response, track_section_id, sensor_id
+        )
 
     return JsonResponse({
         "success": True,
         "prediction": prediction,
-        "alert_created": alert_code is not None,
-        "alert_id": alert_code,
+        "alert_created": alert_id is not None,
+        "alert_id": alert_id,
         "timestamp": timezone.now().isoformat(),  # ← Add timestamp
     })
 
@@ -337,9 +281,11 @@ def api_predict_batch(request):
         }
 
         if create_alerts:
-            alert_code = _maybe_create_alert(prediction, track_section_id, sensor_id)
-            entry["alert_created"] = alert_code is not None
-            entry["alert_id"] = alert_code
+            alert_id = _create_alert_from_response(
+                prediction_response, track_section_id, sensor_id
+            )
+            entry["alert_created"] = alert_id is not None
+            entry["alert_id"] = alert_id
 
         results.append(entry)
 

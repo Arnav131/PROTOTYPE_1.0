@@ -52,6 +52,13 @@ def validate_prediction_request(data: Dict[str, Any]) -> Tuple[bool, Optional[st
             return False, f"Missing required field: '{field_name}'"
 
         value = data[field_name]
+        # bool is a subclass of int; reject it explicitly for numeric fields so
+        # a JSON `true`/`false` is not silently coerced into 1.0/0.0.
+        if expected_type is not str and isinstance(value, bool):
+            return False, (
+                f"Invalid type for '{field_name}': "
+                f"expected number, got bool"
+            )
         if not isinstance(value, expected_type):
             return False, (
                 f"Invalid type for '{field_name}': "
