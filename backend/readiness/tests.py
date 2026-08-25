@@ -1,6 +1,8 @@
 # backend/readiness/tests.py
+import json
 from decimal import Decimal
 from django.test import TestCase, Client
+from django.urls import reverse
 from django.contrib.auth import get_user_model
 from django.utils import timezone
 from railway.models import (
@@ -119,11 +121,94 @@ class OperationalReadinessSeparationLogicTests(TestCase):
         audit_b = ReadinessAuditRecord.objects.filter(case=self.case_b)
         self.assertTrue(audit_b.exists())
 
+    def test_evaluate_case_telemetry_is_pure_on_read_path(self):
+        """evaluate_case_telemetry must NOT persist readiness_score (no writes
+        on GET/render). A sentinel value must survive an evaluate() call."""
+        self.case_a.readiness_score = Decimal("1.23")
+        self.case_a.save(update_fields=["readiness_score"])
+
+        result = evaluate_case_telemetry(self.case_a)
+
+        self.case_a.refresh_from_db()
+        # Persisted value is untouched...
+        self.assertEqual(self.case_a.readiness_score, Decimal("1.23"))
+        # ...but the freshly computed score is returned to the caller.
+        self.assertNotEqual(result["composite_score"], 1.23)
+
+        # And it truly issues zero queries when annotated + prefetched
+        # (no reads and, crucially, no writes on the render path).
+        case = (
+            OperationalReadinessCase.objects
+            .prefetch_related("checklist_items")
+            .get(pk=self.case_a.pk)
+        )
+        list(case.checklist_items.all())  # populate prefetch cache
+        # Alerts fall back to a direct query unless annotated; provide the
+        # attribute so this assertion isolates the "no queries" guarantee.
+        case._active_critical_alerts = 0
+        with self.assertNumQueries(0):
+            evaluate_case_telemetry(case)
+
+    def test_sign_off_persists_readiness_score(self):
+        """The sign-off write path must refresh the persisted readiness_score."""
+        self.assertIsNone(self.case_b.readiness_score)
+        sign_off_checklist_item(
+            case_code=self.case_b.case_code,
+            item_id_or_code="CREW_CLEAR",
+            user=self.user,
+            status="passed",
+        )
+        self.case_b.refresh_from_db()
+        # 1/1 checklist passed -> 60; telemetry fails (vib/temp/ai) -> 0.
+        self.assertEqual(self.case_b.readiness_score, Decimal("60.00"))
+
     def test_telemetry_threshold_safety_gate(self):
         """Case B with vibration > 2.5 mm/s must fail automated safety checks."""
         telemetry = evaluate_case_telemetry(self.case_b)
         self.assertFalse(telemetry["vibration_passed"])
         self.assertFalse(telemetry["all_telemetry_passed"])
+
+    def test_decision_view_treats_string_false_override_as_false(self):
+        """Regression guard: the decision endpoint must NOT let the string
+        "false" be coerced to a truthy override (bool("false") is True).
+        Case B fails telemetry, so a non-override READY must be rejected (422)
+        and the case must stay NOT_READY."""
+        resp = self.client.post(
+            reverse("readiness:api_decide", args=[self.case_b.case_code]),
+            data=json.dumps({
+                "decision": "ready",
+                "speed_kmph": 110,
+                "is_override": "false",  # string, not a JSON bool
+            }),
+            content_type="application/json",
+        )
+        self.assertEqual(resp.status_code, 422)
+        self.case_b.refresh_from_db()
+        self.assertEqual(
+            self.case_b.readiness_decision,
+            OperationalReadinessCase.ReadinessDecision.NOT_READY,
+        )
+
+    def test_decision_view_real_override_bypasses_gate(self):
+        """A genuine boolean override lets the controller authorize despite a
+        failed telemetry gate (the intended escape hatch still works)."""
+        resp = self.client.post(
+            reverse("readiness:api_decide", args=[self.case_b.case_code]),
+            data=json.dumps({
+                "decision": "ready",
+                "speed_kmph": 30,
+                "is_override": True,
+                "override_reason": "manual field clearance",
+            }),
+            content_type="application/json",
+        )
+        self.assertEqual(resp.status_code, 200)
+        self.case_b.refresh_from_db()
+        self.assertEqual(
+            self.case_b.readiness_decision,
+            OperationalReadinessCase.ReadinessDecision.READY,
+        )
+        self.assertTrue(self.case_b.is_overridden)
 
         # Attempting to authorize READY without override must raise ValueError
         with self.assertRaises(ValueError):

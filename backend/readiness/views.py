@@ -1,12 +1,27 @@
 # backend/readiness/views.py
 import json
 from decimal import Decimal
+from django.db.models import Count, Q
 from django.shortcuts import render, get_object_or_404
 from django.http import JsonResponse
 from django.views.decorators.http import require_http_methods
 from django.views.decorators.csrf import ensure_csrf_cookie
 from django.contrib.auth.decorators import login_required
 from railway.models import OperationalReadinessCase
+
+# Annotation shared by the dashboard list endpoints: number of active
+# critical/warning alerts on each case's track section, computed in a single
+# grouped query instead of one COUNT per case inside evaluate_case_telemetry.
+_ACTIVE_CRITICAL_ALERTS_ANNOTATION = {
+    "_active_critical_alerts": Count(
+        "track_section__alerts",
+        filter=Q(
+            track_section__alerts__status="active",
+            track_section__alerts__severity__in=["critical", "warning"],
+        ),
+        distinct=True,
+    )
+}
 from .services import (
     get_case_payload,
     sign_off_checklist_item,
@@ -21,11 +36,16 @@ def readiness_page(request):
     """
     Renders the main Operational Readiness Control Center dashboard.
     """
-    cases = OperationalReadinessCase.objects.select_related(
-        "track_section__start_station",
-        "track_section__end_station",
-        "assigned_team",
-    ).prefetch_related("checklist_items", "audit_records").all().order_by("-created_at")
+    cases = (
+        OperationalReadinessCase.objects.select_related(
+            "track_section__start_station",
+            "track_section__end_station",
+            "assigned_team",
+        )
+        .prefetch_related("checklist_items", "audit_records")
+        .annotate(**_ACTIVE_CRITICAL_ALERTS_ANNOTATION)
+        .order_by("-created_at")
+    )
 
     cases_payload = [get_case_payload(c) for c in cases]
     
@@ -55,10 +75,15 @@ def api_get_cases(request):
     """
     JSON API: returns list of all readiness cases.
     """
-    cases = OperationalReadinessCase.objects.select_related(
-        "track_section__start_station",
-        "track_section__end_station",
-    ).prefetch_related("checklist_items", "audit_records").all().order_by("-created_at")
+    cases = (
+        OperationalReadinessCase.objects.select_related(
+            "track_section__start_station",
+            "track_section__end_station",
+        )
+        .prefetch_related("checklist_items", "audit_records")
+        .annotate(**_ACTIVE_CRITICAL_ALERTS_ANNOTATION)
+        .order_by("-created_at")
+    )
 
     payload = [get_case_payload(c) for c in cases]
     return JsonResponse({"status": "success", "cases": payload})
@@ -137,14 +162,35 @@ def api_submit_decision(request, case_code):
         data = request.POST
 
     decision = data.get("decision")  # 'ready', 'conditionally_ready', 'not_ready'
-    speed_kmph = int(data.get("speed_kmph", 0))
     notes = data.get("notes", "")
     conditions = data.get("conditions", "")
-    is_override = bool(data.get("is_override", False))
     override_reason = data.get("override_reason", "")
 
     if not decision:
         return JsonResponse({"status": "error", "message": "Decision value is required"}, status=400)
+
+    valid_decisions = {c for c, _ in OperationalReadinessCase.ReadinessDecision.choices}
+    if decision not in valid_decisions:
+        return JsonResponse(
+            {"status": "error", "message": f"Invalid decision: {decision}"}, status=400
+        )
+
+    # Parse speed defensively — a malformed value must yield a clean 400, not an
+    # uncaught 500 (this parse previously sat outside the try block).
+    try:
+        speed_kmph = int(data.get("speed_kmph", 0) or 0)
+    except (TypeError, ValueError):
+        return JsonResponse(
+            {"status": "error", "message": "speed_kmph must be an integer"}, status=400
+        )
+
+    # Robust truthiness: form-encoded bodies deliver strings, and bool("false")
+    # is True. This flag bypasses the telemetry safety gate, so parse it strictly.
+    raw_override = data.get("is_override", False)
+    if isinstance(raw_override, str):
+        is_override = raw_override.strip().lower() in ("1", "true", "yes", "on")
+    else:
+        is_override = bool(raw_override)
 
     try:
         case = submit_controller_decision(
