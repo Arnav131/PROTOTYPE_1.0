@@ -8,10 +8,15 @@
    Clean, Modern Rail Safety Operations Interface
    ============================================================ */
 :root {
-    --fd-bg-dark: #070a12;
-    --fd-panel-bg: rgba(13, 19, 33, 0.85);
-    --fd-panel-border: rgba(56, 189, 248, 0.16);
-    --fd-border-subtle: rgba(255, 255, 255, 0.08);
+    /* Warm-neutral dark surfaces tuned to the shared railway background (dusk
+       station: amber lighting, brown ballast, warm charcoal shadows) and to the
+       app's own warm shell tokens (--sidebar-bg rgba(18,16,14,.55), --charcoal
+       #141310). Reduced blue saturation + more transparency so the environment
+       shows through. Cyan is reserved as an accent, not a blanket card border. */
+    --fd-bg-dark: #0b0a0c;
+    --fd-panel-bg: rgba(20, 18, 16, 0.76);
+    --fd-panel-border: rgba(255, 255, 255, 0.08);
+    --fd-border-subtle: rgba(255, 255, 255, 0.06);
     --fd-green: #10b981;
     --fd-green-soft: rgba(16, 185, 129, 0.15);
     --fd-red: #ef4444;
@@ -32,11 +37,25 @@
     max-width: 100%;
 }
 
+/* A single, light, warm-neutral veil over the shared station background so the
+   railway environment stays subtly visible (especially in the gaps between
+   cards) and its warm character reads through the translucent surfaces. Kept
+   deliberately light — the darkening is the app's one global body overlay; this
+   only harmonises tone. Scoped to the readiness page. */
+.readiness-page::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background: rgba(12, 10, 9, 0.32);
+    z-index: -1;
+    pointer-events: none;
+}
+
 /* ============================================================
    1. SINGLE-ROW BANNER (~48px)
    ============================================================ */
 .readiness-banner {
-    background: linear-gradient(135deg, rgba(15, 23, 42, 0.95) 0%, rgba(8, 16, 32, 0.95) 100%);
+    background: linear-gradient(135deg, rgba(26, 23, 20, 0.70) 0%, rgba(18, 16, 14, 0.74) 100%);
     border: 1px solid var(--fd-panel-border);
     border-radius: 12px;
     padding: 0.65rem 1.25rem;
@@ -46,7 +65,7 @@
     flex-wrap: wrap;
     gap: 0.75rem;
     min-height: 48px;
-    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.35);
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.22);
 }
 
 .banner-title-group {
@@ -123,16 +142,19 @@
     gap: 0.35rem;
     position: relative;
     overflow: hidden;
-    box-shadow: 0 4px 16px rgba(0,0,0,0.25);
-    transition: border-color 0.2s ease, transform 0.2s ease;
+    box-shadow: none;
+    transition: border-color 0.2s ease;
 }
 
 .annunciator-cell::before {
     content: '';
     position: absolute;
-    top: 0; left: 0; right: 0; height: 3px;
+    top: 0; left: 0; right: 0; height: 2px;
+    opacity: 0.8;
 }
 
+/* Only operational status cells carry semantic colour; informational cells
+   (active gate count, interlock sync %) use the neutral cyan UI accent. */
 .annunciator-cell--total::before { background: var(--fd-cyan); }
 .annunciator-cell--go::before { background: var(--fd-green); }
 .annunciator-cell--hold::before { background: var(--fd-red); }
@@ -156,16 +178,36 @@
 /* ============================================================
    3. CONTROLS BAR & TRAIN SELECTOR
    ============================================================ */
+/* Two distinct, vertically-stacked regions — Route Selector, then Actions — so
+   the route tabs and action buttons never compete for the same horizontal
+   space. The route area scrolls horizontally; the action area wraps. This is
+   deterministic at every width (the app sidebar makes a viewport-based
+   single-row breakpoint unreliable), so neither region can overlap the other. */
 .control-bar {
     background: var(--fd-panel-bg);
     border: 1px solid var(--fd-panel-border);
     border-radius: 12px;
     padding: 0.75rem 1.15rem;
     display: flex;
-    justify-content: space-between;
-    align-items: center;
-    flex-wrap: wrap;
-    gap: 0.85rem;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.9rem;
+    min-width: 0;
+}
+
+.control-region {
+    display: flex;
+    flex-direction: column;
+    gap: 0.45rem;
+    min-width: 0;
+}
+
+.control-region-label {
+    font-size: 0.68rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: #64748b;
 }
 
 .train-selector-tabs {
@@ -173,6 +215,9 @@
     gap: 0.5rem;
     overflow-x: auto;
     padding-bottom: 0.2rem;
+    min-width: 0;
+    max-width: 100%;
+    width: 100%;
 }
 
 .train-tab-btn {
@@ -225,6 +270,16 @@
     display: flex;
     align-items: center;
     gap: 0.65rem;
+    flex-wrap: wrap;
+    justify-content: flex-start;
+}
+
+/* Consistent, usable button sizing so wrapped actions stay aligned and never
+   compress below a legible size. */
+.control-actions-right .view-btn,
+.control-actions-right .worker-terminal-btn {
+    min-height: 34px;
+    flex: 0 0 auto;
 }
 
 .worker-terminal-btn {
@@ -301,7 +356,7 @@
     display: flex;
     flex-direction: column;
     gap: 1.25rem;
-    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.35);
+    box-shadow: 0 4px 18px rgba(0, 0, 0, 0.22);
     position: relative;
     min-width: 0;
     max-width: 100%;
@@ -435,24 +490,69 @@
 }
 
 .clearance-go {
-    background: rgba(16, 185, 129, 0.15);
+    background: rgba(16, 185, 129, 0.12);
     color: #10b981;
-    border: 1.5px solid #10b981;
-    box-shadow: 0 0 14px rgba(16, 185, 129, 0.2);
+    border: 1.5px solid rgba(16, 185, 129, 0.55);
 }
 
 .clearance-nogo {
-    background: rgba(239, 68, 68, 0.15);
+    background: rgba(239, 68, 68, 0.12);
     color: #ef4444;
-    border: 1.5px solid #ef4444;
-    box-shadow: 0 0 14px rgba(239, 68, 68, 0.2);
+    border: 1.5px solid rgba(239, 68, 68, 0.55);
 }
 
 .clearance-caution {
-    background: rgba(245, 158, 11, 0.15);
+    background: rgba(245, 158, 11, 0.12);
     color: #f59e0b;
-    border: 1.5px solid #f59e0b;
-    box-shadow: 0 0 14px rgba(245, 158, 11, 0.2);
+    border: 1.5px solid rgba(245, 158, 11, 0.55);
+}
+
+/* Dominant route state card (right side of the route header) */
+.route-state-card {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.5rem;
+    padding: 0.9rem 1.15rem;
+    border-radius: 12px;
+    min-width: 210px;
+    flex: 0 1 240px;
+}
+
+.route-state-top {
+    display: flex;
+    align-items: center;
+    gap: 0.55rem;
+}
+
+.route-state-label {
+    font-size: 0.9rem;
+    font-weight: 800;
+    letter-spacing: 0.04em;
+}
+
+.route-state-speed {
+    display: flex;
+    align-items: baseline;
+    gap: 0.35rem;
+}
+
+.route-state-speed b {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 1.85rem;
+    font-weight: 800;
+    line-height: 1;
+}
+
+.route-state-speed span {
+    font-size: 0.72rem;
+    font-weight: 600;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    opacity: 0.85;
+}
+
+@media (max-width: 640px) {
+    .route-state-card { width: 100%; flex-basis: auto; }
 }
 
 /* One-shot state change flash */
@@ -473,6 +573,8 @@
     gap: 0.5rem;
     border-bottom: 1px solid var(--fd-border-subtle);
     padding-bottom: 0.5rem;
+    overflow-x: auto;
+    min-width: 0;
 }
 
 .card-tab-btn {
@@ -488,6 +590,8 @@
     align-items: center;
     gap: 0.45rem;
     transition: all 0.2s ease;
+    flex-shrink: 0;
+    white-space: nowrap;
 }
 
 .card-tab-btn:hover {
@@ -573,7 +677,7 @@
 }
 
 .flightdeck-checklist-card {
-    background: rgba(15, 23, 42, 0.6);
+    background: rgba(255, 255, 255, 0.035);
     border: 1px solid var(--fd-border-subtle);
     border-radius: 8px;
     padding: 0.75rem 1rem;
@@ -686,64 +790,43 @@
     border-color: rgba(239, 68, 68, 0.35);
 }
 
-/* Interlocking Gate Pre-Condition Bar */
-.interlocking-gate-bar {
-    background: rgba(15, 23, 42, 0.7);
+/* Verification strip — compact departure pre-condition checklist */
+.verification-strip {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.5rem 0.75rem;
+    background: rgba(255, 255, 255, 0.035);
     border: 1px solid var(--fd-border-subtle);
     border-radius: 8px;
-    padding: 0.65rem 0.9rem;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    flex-wrap: wrap;
-    gap: 0.6rem;
-    margin-bottom: 0.85rem;
+    padding: 0.6rem 0.85rem;
 }
 
-.interlocking-gate-bar--ready {
-    border-color: rgba(16, 185, 129, 0.3);
-    background: rgba(16, 185, 129, 0.04);
-}
-
-.interlocking-gate-bar--locked {
-    border-color: rgba(239, 68, 68, 0.25);
-    background: rgba(239, 68, 68, 0.03);
-}
-
-.gate-status-pill {
-    font-family: 'JetBrains Mono', monospace;
-    font-size: 0.75rem;
-    font-weight: 700;
-    letter-spacing: 0.03em;
+.verify-chip {
     display: inline-flex;
     align-items: center;
-    gap: 0.45rem;
-}
-
-.gate-status-pill--ready {
-    color: var(--fd-green);
-}
-
-.gate-status-pill--locked {
-    color: var(--fd-red);
-}
-
-.gate-req-checklist {
-    display: flex;
-    align-items: center;
-    gap: 0.75rem;
-    font-size: 0.72rem;
-    font-family: 'JetBrains Mono', monospace;
-}
-
-.req-met {
-    color: var(--fd-green);
+    gap: 0.4rem;
+    font-size: 0.76rem;
     font-weight: 600;
+    letter-spacing: 0.01em;
+    padding: 0.25rem 0.55rem;
+    border-radius: 6px;
+    border: 1px solid transparent;
+    white-space: nowrap;
 }
 
-.req-unmet {
-    color: #94a3b8;
-    opacity: 0.8;
+.verify-chip svg { flex-shrink: 0; }
+
+.verify-chip--ok {
+    color: var(--fd-green);
+    background: rgba(16, 185, 129, 0.10);
+    border-color: rgba(16, 185, 129, 0.28);
+}
+
+.verify-chip--bad {
+    color: var(--fd-red);
+    background: rgba(239, 68, 68, 0.10);
+    border-color: rgba(239, 68, 68, 0.30);
 }
 
 .btn-worker-sign {
@@ -772,7 +855,7 @@
    7. CONTROLLER DECISION SECTION
    ============================================================ */
 .controller-switchboard {
-    background: rgba(10, 15, 29, 0.75);
+    background: rgba(20, 18, 16, 0.66);
     border: 1px solid var(--fd-panel-border);
     border-radius: 10px;
     padding: 1rem;
@@ -792,65 +875,120 @@
     align-items: center;
 }
 
-.clearance-buttons-group {
+/* Dominant current-state panel */
+.auth-primary {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 1rem;
+    padding: 1rem 1.15rem;
+    border-radius: 10px;
+    border: 1.5px solid transparent;
+}
+.auth-primary--go     { background: rgba(16, 185, 129, 0.10); border-color: rgba(16, 185, 129, 0.45); }
+.auth-primary--caution{ background: rgba(245, 158, 11, 0.10); border-color: rgba(245, 158, 11, 0.45); }
+.auth-primary--hold   { background: rgba(239, 68, 68, 0.10);  border-color: rgba(239, 68, 68, 0.45); }
+
+.auth-primary-info {
+    display: flex;
+    flex-direction: column;
+    gap: 0.3rem;
+    min-width: 0;
+    flex: 1 1 240px;
+}
+
+.auth-primary-state {
+    display: flex;
+    align-items: center;
+    gap: 0.55rem;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 1rem;
+    font-weight: 800;
+    letter-spacing: 0.03em;
+}
+.auth-primary-icon { display: inline-flex; align-items: center; flex-shrink: 0; }
+.auth-primary--go .auth-primary-state     { color: #34d399; }
+.auth-primary--caution .auth-primary-state{ color: #fbbf24; }
+.auth-primary--hold .auth-primary-state   { color: #f87171; }
+
+.auth-primary-detail {
+    font-size: 0.8rem;
+    color: #94a3b8;
+    line-height: 1.4;
+    overflow-wrap: anywhere;
+}
+
+.auth-primary-btn {
+    flex-shrink: 0;
+    padding: 0.7rem 1.4rem;
+    border-radius: 8px;
+    font-family: 'JetBrains Mono', monospace;
+    font-weight: 800;
+    font-size: 0.85rem;
+    letter-spacing: 0.03em;
+    cursor: pointer;
+    border: 1.5px solid transparent;
+    transition: background 0.2s ease, color 0.2s ease, border-color 0.2s ease;
+}
+.auth-primary-btn--go      { background: #10b981; color: #07080d; }
+.auth-primary-btn--go:hover { background: #34d399; }
+.auth-primary-btn--caution { background: #f59e0b; color: #07080d; }
+.auth-primary-btn--caution:hover { background: #fbbf24; }
+.auth-primary-btn--hold    { background: #ef4444; color: #ffffff; }
+.auth-primary-btn--hold:hover { background: #f87171; }
+.auth-primary-btn:focus-visible { outline: 2px solid #fff; outline-offset: 2px; }
+
+/* Alternative authorizations (secondary, de-emphasized) */
+.auth-alt-label {
+    font-size: 0.72rem;
+    font-weight: 700;
+    color: #64748b;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    margin-top: 0.15rem;
+}
+
+.auth-alt-group {
     display: grid;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-    gap: 0.65rem;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.6rem;
 }
 
 @media (max-width: 768px) {
-    .clearance-buttons-group { grid-template-columns: minmax(0, 1fr); }
+    .auth-alt-group { grid-template-columns: minmax(0, 1fr); }
 }
 
-.btn-master-action {
-    padding: 0.75rem 0.65rem;
+.auth-alt-btn {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.6rem 0.75rem;
     border-radius: 8px;
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid var(--fd-border-subtle);
+    color: #94a3b8;
     font-family: 'JetBrains Mono', monospace;
     font-weight: 700;
-    font-size: 0.825rem;
+    font-size: 0.78rem;
     cursor: pointer;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 0.2rem;
     transition: all 0.2s ease;
     min-width: 0;
-    border: 1.5px solid transparent;
 }
-.btn-master-action span { overflow-wrap: anywhere; }
+.auth-alt-icon { display: inline-flex; align-items: center; flex-shrink: 0; opacity: 0.85; }
+.auth-alt-text { flex: 1 1 auto; text-align: left; overflow-wrap: anywhere; }
+.auth-alt-speed { font-size: 0.72rem; color: #64748b; flex-shrink: 0; }
 
-.btn-master-go {
-    background: rgba(16, 185, 129, 0.15);
-    color: #34d399;
-    border-color: rgba(16, 185, 129, 0.4);
+.auth-alt-btn--go:hover {
+    color: #34d399; border-color: rgba(16, 185, 129, 0.5); background: rgba(16, 185, 129, 0.08);
 }
-.btn-master-go:hover {
-    background: #10b981;
-    color: #07080d;
-    border-color: #10b981;
+.auth-alt-btn--caution:hover {
+    color: #fbbf24; border-color: rgba(245, 158, 11, 0.5); background: rgba(245, 158, 11, 0.08);
 }
-
-.btn-master-caution {
-    background: rgba(245, 158, 11, 0.15);
-    color: #fbbf24;
-    border-color: rgba(245, 158, 11, 0.4);
+.auth-alt-btn--hold:hover {
+    color: #f87171; border-color: rgba(239, 68, 68, 0.5); background: rgba(239, 68, 68, 0.08);
 }
-.btn-master-caution:hover {
-    background: #f59e0b;
-    color: #07080d;
-    border-color: #f59e0b;
-}
-
-.btn-master-hold {
-    background: rgba(239, 68, 68, 0.15);
-    color: #f87171;
-    border-color: rgba(239, 68, 68, 0.4);
-}
-.btn-master-hold:hover {
-    background: #ef4444;
-    color: #ffffff;
-    border-color: #ef4444;
-}
+.auth-alt-btn:focus-visible { outline: 2px solid var(--fd-cyan); outline-offset: 1px; }
 
 /* ============================================================
    8. COLLAPSIBLE AUDIT LOG (<details>)
@@ -936,7 +1074,7 @@
 }
 
 .modal-card {
-    background: #0f172a;
+    background: rgba(24, 21, 18, 0.97);
     border: 1px solid var(--fd-panel-border);
     border-radius: 14px;
     width: 100%;
@@ -945,7 +1083,7 @@
     display: flex;
     flex-direction: column;
     gap: 1.15rem;
-    box-shadow: 0 20px 50px rgba(0, 0, 0, 0.7), 0 0 20px rgba(6, 182, 212, 0.1);
+    box-shadow: 0 20px 50px rgba(0, 0, 0, 0.55);
 }
 
 .modal-header {
@@ -1084,7 +1222,7 @@
     position: fixed;
     bottom: 2rem;
     right: 2rem;
-    background: #0f172a;
+    background: rgba(24, 21, 18, 0.97);
     color: #ffffff;
     border: 1px solid var(--fd-panel-border);
     border-left: 4px solid var(--fd-cyan);
@@ -1198,10 +1336,10 @@ body.is-dragging * { cursor: grabbing !important; }
 .track-picker-popover {
     position: fixed;
     z-index: 10001;
-    background: #0d1524;
-    border: 1px solid rgba(56, 189, 248, 0.35);
+    background: rgba(24, 21, 18, 0.98);
+    border: 1px solid rgba(255, 255, 255, 0.10);
     border-radius: 12px;
-    box-shadow: 0 24px 60px rgba(0, 0, 0, 0.7);
+    box-shadow: 0 24px 60px rgba(0, 0, 0, 0.55);
     display: none;
     flex-direction: column;
     overflow: hidden;
@@ -1396,11 +1534,16 @@ body.is-dragging * { cursor: grabbing !important; }
     <!-- 3. CONTROLS & TRAIN SELECTOR                                  -->
     <!-- ============================================================= -->
     <section class="control-bar" aria-label="Train Controls">
-        <div class="train-selector-tabs" id="case-selector-bar" role="tablist" aria-label="Select Train">
-            <!-- Dynamically populated by JS -->
+        <div class="control-region control-region--routes">
+            <span class="control-region-label">Route Selector</span>
+            <div class="train-selector-tabs" id="case-selector-bar" role="tablist" aria-label="Select Train">
+                <!-- Dynamically populated by JS -->
+            </div>
         </div>
 
-        <div class="control-actions-right">
+        <div class="control-region control-region--actions">
+            <span class="control-region-label">Actions</span>
+            <div class="control-actions-right">
             <button class="view-btn" id="btn-demo-sign-all" onclick="demoSignOffAll(activeCaseCodeA)" title="Quick-verify all field departments for pitch demo" style="color:var(--fd-green); border-color:rgba(16,185,129,0.35);">
                 <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
                     <polyline points="20 6 9 17 4 12"></polyline>
@@ -1432,6 +1575,7 @@ body.is-dragging * { cursor: grabbing !important; }
                 </svg>
                 Split Compare
             </button>
+            </div>
         </div>
     </section>
 
@@ -2254,6 +2398,83 @@ function getPillarSvg(item) {
     return `<span class="pillar-icon-svg" style="color:${dept.badgeColor};">${dept.icon}</span>`;
 }
 
+// Authorization state definitions. Decision codes + speeds match the existing
+// backend contract exactly (GO=130, CAUTION=30, HOLD=0) — unchanged.
+const AUTH_STATES = {
+    go: {
+        decision: 'ready', speed: 130, cls: 'go',
+        label: 'CLEARED FOR DEPARTURE',
+        detail: 'Green signal cleared • Maximum permitted speed 130 km/h.',
+        action: 'AUTHORIZE DEPARTURE',
+        icon: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>',
+    },
+    caution: {
+        decision: 'conditionally_ready', speed: 30, cls: 'caution',
+        label: 'CAUTION DEPARTURE',
+        detail: 'Turnout / restriction departure • Speed limited to 30 km/h.',
+        action: 'AUTHORIZE CAUTION',
+        icon: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>',
+    },
+    hold: {
+        decision: 'not_ready', speed: 0, cls: 'hold',
+        label: 'HOLD AT PLATFORM',
+        detail: 'Red signal locked • Departure held at 0 km/h.',
+        action: 'ENFORCE HOLD',
+        icon: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="15" y1="9" x2="9" y2="15"></line><line x1="9" y1="9" x2="15" y2="15"></line></svg>',
+    },
+};
+
+// Builds the Controller Authorization section: the current state is the
+// dominant panel with a primary action; the two other states remain fully
+// reachable as compact "alternative" buttons. All buttons call the unchanged
+// submitDecision() so the existing safety-gate / override flow is preserved.
+function renderAuthorizationHtml(c, currentKey) {
+    const order = ['go', 'caution', 'hold'];
+    const key = order.includes(currentKey) ? currentKey : 'hold';
+    const primary = AUTH_STATES[key];
+    const code = escapeHtml(c.case_code);
+
+    const altButtons = order.filter(k => k !== key).map(k => {
+        const s = AUTH_STATES[k];
+        return `
+            <button type="button" class="auth-alt-btn auth-alt-btn--${s.cls}"
+                    onclick="submitDecision('${code}', '${s.decision}', ${s.speed})">
+                <span class="auth-alt-icon">${s.icon}</span>
+                <span class="auth-alt-text">${s.label}</span>
+                <span class="auth-alt-speed">${s.speed} km/h</span>
+            </button>
+        `;
+    }).join('');
+
+    return `
+        <div class="controller-switchboard">
+            <div class="switchboard-title">
+                <span>Controller Authorization</span>
+                ${c.is_overridden ? '<span class="tick-badge tick-badge--failed">OVERRIDE ENFORCED</span>' : ''}
+            </div>
+
+            <div class="auth-primary auth-primary--${primary.cls}">
+                <div class="auth-primary-info">
+                    <div class="auth-primary-state">
+                        <span class="auth-primary-icon">${primary.icon}</span>
+                        <span>${primary.label}</span>
+                    </div>
+                    <div class="auth-primary-detail">${primary.detail}</div>
+                </div>
+                <button type="button" class="auth-primary-btn auth-primary-btn--${primary.cls}"
+                        onclick="submitDecision('${code}', '${primary.decision}', ${primary.speed})">
+                    ${primary.action}
+                </button>
+            </div>
+
+            <div class="auth-alt-label">Alternative authorizations</div>
+            <div class="auth-alt-group">
+                ${altButtons}
+            </div>
+        </div>
+    `;
+}
+
 // Render Single Card
 function renderCaseCard(c, slot = 'A') {
     if (!c) {
@@ -2268,17 +2489,26 @@ function renderCaseCard(c, slot = 'A') {
         `;
     }
 
+    // Current operational state → drives the dominant state card AND the
+    // controller authorization panel. Derived strictly from readiness_decision
+    // (the existing backend field); no state is hardcoded.
     let clearanceClass = 'clearance-nogo';
-    let clearanceText = 'HOLD AT PLATFORM — 0 KM/H';
+    let stateKey = 'hold';                 // 'go' | 'caution' | 'hold'
+    let stateLabel = 'HOLD AT PLATFORM';
+    let stateSpeed = (c.cleared_speed_kmph != null ? c.cleared_speed_kmph : 0);
     let iconSvg = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="15" y1="9" x2="9" y2="15"></line><line x1="9" y1="9" x2="15" y2="15"></line></svg>';
 
     if (c.readiness_decision === 'ready') {
         clearanceClass = 'clearance-go';
-        clearanceText = `CLEARED FOR DEPARTURE (GO) — ${c.cleared_speed_kmph || 130} KM/H`;
+        stateKey = 'go';
+        stateLabel = 'CLEARED FOR DEPARTURE';
+        stateSpeed = c.cleared_speed_kmph || 130;
         iconSvg = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>';
     } else if (c.readiness_decision === 'conditionally_ready') {
         clearanceClass = 'clearance-caution';
-        clearanceText = `CAUTION RESTRICTION — ${c.cleared_speed_kmph || 30} KM/H`;
+        stateKey = 'caution';
+        stateLabel = 'CAUTION DEPARTURE';
+        stateSpeed = c.cleared_speed_kmph || 30;
         iconSvg = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>';
     }
 
@@ -2407,7 +2637,7 @@ function renderCaseCard(c, slot = 'A') {
                     <span style="font-family:'JetBrains Mono'; font-size:0.825rem; color:${pScoreColor}; font-weight:700;">Ground Safety Score: ${pScore}</span>
                 </div>
                 
-                <div style="background: rgba(15, 23, 42, 0.6); border: 1px solid var(--fd-border-subtle); border-radius: 8px; padding: 0.65rem 0.95rem; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.5rem; font-size: 0.78rem; color: #94a3b8;">
+                <div style="background: rgba(255, 255, 255, 0.035); border: 1px solid var(--fd-border-subtle); border-radius: 8px; padding: 0.65rem 0.95rem; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.5rem; font-size: 0.78rem; color: #94a3b8;">
                     <div>
                         <strong style="color:#f8fafc;">Inspector:</strong> ${escapeHtml(p.worker_name || p.worker)} • 
                         <strong style="color:#f8fafc;">Section:</strong> ${escapeHtml(p.section_name)} • 
@@ -2432,7 +2662,7 @@ function renderCaseCard(c, slot = 'A') {
                     <span>Physical Ground Patrol Report</span>
                     <span style="font-size:0.75rem; color:var(--fd-amber);">Pending Field Inspection</span>
                 </div>
-                <div style="background: rgba(15, 23, 42, 0.4); border: 1px dashed rgba(255,255,255,0.12); border-radius: 8px; padding: 1.5rem; text-align: center; color: #94a3b8; display: flex; flex-direction: column; align-items: center; gap: 0.65rem;">
+                <div style="background: rgba(255, 255, 255, 0.025); border: 1px dashed rgba(255,255,255,0.12); border-radius: 8px; padding: 1.5rem; text-align: center; color: #94a3b8; display: flex; flex-direction: column; align-items: center; gap: 0.65rem;">
                     <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#64748b" stroke-width="1.8"><path d="M16 3h5v5M8 3H3v5M3 16v5h5M16 21h5v-5"></path><circle cx="12" cy="12" r="4"></circle></svg>
                     <div>No physical ground inspection recorded yet on corridor <strong>${escapeHtml(c.section_name)}</strong>.</div>
                 </div>
@@ -2465,27 +2695,31 @@ function renderCaseCard(c, slot = 'A') {
         ? (slot === 'A' ? 'DROP TO PIN LEFT' : 'DROP TO PIN RIGHT')
         : 'DROP TO OPEN';
 
-    // Interlocking Gate Bar calculation
+    // ---- Verification strip (compact operational pre-condition checklist) ----
+    // Uses the real telemetry fields from the backend evaluation. Each check is
+    // independent so an invalid condition flips only its own chip.
     const totalCount = checklistItems.length;
-    const isInterlockReady = (passedCount === totalCount && totalCount > 0) && (t.overall_passed || false) && (t.active_critical_alerts || 0) === 0;
+    const telemetryValid = !!t.all_telemetry_passed;
+    const signoffsComplete = (passedCount === totalCount && totalCount > 0);
+    const alertsClear = (t.active_critical_alerts || 0) === 0;
+    const activeAlerts = (t.active_critical_alerts != null ? t.active_critical_alerts : 0);
+    const isInterlockReady = signoffsComplete && telemetryValid && alertsClear;
+
+    const verifyChip = (ok, okLabel, badLabel) => `
+        <span class="verify-chip ${ok ? 'verify-chip--ok' : 'verify-chip--bad'}">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round">
+                ${ok ? '<polyline points="20 6 9 17 4 12"></polyline>' : '<line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line>'}
+            </svg>
+            <span>${ok ? okLabel : badLabel}</span>
+        </span>`;
 
     const gateStatusHtml = `
-        <div class="interlocking-gate-bar ${isInterlockReady ? 'interlocking-gate-bar--ready' : 'interlocking-gate-bar--locked'}">
-            <div class="gate-status-pill ${isInterlockReady ? 'gate-status-pill--ready' : 'gate-status-pill--locked'}">
-                <span class="status-beacon ${isInterlockReady ? 'beacon-go' : 'beacon-hold'}"></span>
-                <span>${isInterlockReady ? 'INTERLOCKING SYNCHRONIZED • GREEN SIGNAL AUTHORIZED' : 'INTERLOCK ACTIVE • GREEN SIGNAL LOCKED'}</span>
-            </div>
-            <div class="gate-req-checklist">
-                <span class="${t.overall_passed ? 'req-met' : 'req-unmet'}">
-                    ${t.overall_passed ? '✓' : '✗'} Telemetry Envelope
-                </span>
-                <span class="${passedCount === totalCount && totalCount > 0 ? 'req-met' : 'req-unmet'}">
-                    ${passedCount === totalCount && totalCount > 0 ? '✓' : '✗'} Field Sign-offs (${passedCount}/${totalCount})
-                </span>
-                <span class="${(t.active_critical_alerts || 0) === 0 ? 'req-met' : 'req-unmet'}">
-                    ${(t.active_critical_alerts || 0) === 0 ? '✓' : '✗'} Alerts (0)
-                </span>
-            </div>
+        <div class="verification-strip" role="group" aria-label="Departure pre-conditions">
+            ${verifyChip(isInterlockReady, 'Interlock Active', 'Interlock Locked')}
+            ${verifyChip(isInterlockReady, 'Signal Authorized', 'Signal Locked')}
+            ${verifyChip(telemetryValid, 'Telemetry Valid', 'Telemetry Out of Envelope')}
+            ${verifyChip(signoffsComplete, `Field Sign-offs ${passedCount}/${totalCount}`, `Field Sign-offs ${passedCount}/${totalCount}`)}
+            ${verifyChip(alertsClear, 'Alerts 0', `Alerts ${activeAlerts}`)}
         </div>
     `;
 
@@ -2503,9 +2737,14 @@ function renderCaseCard(c, slot = 'A') {
                     <h2 class="train-title">${escapeHtml(c.title || 'Train Departure Gate')}</h2>
                     <div class="train-subtitle">Assigned Route: ${escapeHtml(c.section_name || 'Standard Main Line')} • Dispatch Unit: Northern Central Corridor</div>
                 </div>
-                <div class="master-clearance-light ${clearanceClass}">
-                    ${iconSvg}
-                    <span>${clearanceText}</span>
+                <div class="master-clearance-light route-state-card ${clearanceClass}">
+                    <div class="route-state-top">
+                        ${iconSvg}
+                        <span class="route-state-label">${stateLabel}</span>
+                    </div>
+                    <div class="route-state-speed">
+                        <b>${stateSpeed}</b><span>km/h max</span>
+                    </div>
                 </div>
             </div>
 
@@ -2589,27 +2828,8 @@ function renderCaseCard(c, slot = 'A') {
             <!-- Interlocking Pre-Condition Status Bar -->
             ${gateStatusHtml}
 
-            <!-- Controller Decision Switchboard (Always Visible) -->
-            <div class="controller-switchboard">
-                <div class="switchboard-title">
-                    <span>Controller Authorization Switchboard</span>
-                    ${c.is_overridden ? '<span class="tick-badge tick-badge--failed">OVERRIDE ENFORCED</span>' : ''}
-                </div>
-                <div class="clearance-buttons-group">
-                    <button class="btn-master-action btn-master-go" onclick="submitDecision('${escapeHtml(c.case_code)}', 'ready', 130)">
-                        <span>CLEARED FOR DEPARTURE (GO)</span>
-                        <span style="font-size:0.72rem; opacity:0.85;">Authorize Green Signal (130 km/h)</span>
-                    </button>
-                    <button class="btn-master-action btn-master-caution" onclick="submitDecision('${escapeHtml(c.case_code)}', 'conditionally_ready', 30)">
-                        <span>CAUTION DEPARTURE</span>
-                        <span style="font-size:0.72rem; opacity:0.85;">Turnout Restriction (30 km/h)</span>
-                    </button>
-                    <button class="btn-master-action btn-master-hold" onclick="submitDecision('${escapeHtml(c.case_code)}', 'not_ready', 0)">
-                        <span>HOLD AT PLATFORM (HOLD)</span>
-                        <span style="font-size:0.72rem; opacity:0.85;">Lock Red Signal (0 km/h)</span>
-                    </button>
-                </div>
-            </div>
+            <!-- Controller Authorization — current state dominant, others as alternatives -->
+            ${renderAuthorizationHtml(c, stateKey)}
 
             <!-- Collapsible Audit Log (<details>) -->
             <details class="audit-details">
