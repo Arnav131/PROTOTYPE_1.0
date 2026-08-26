@@ -205,58 +205,6 @@ def _build_track_sections():
     return result
 
 
-def _build_system_summary():
-    """Build doughnut chart data from real system tables."""
-    total_tracks = TrackSection.objects.count()
-    critical_section_ids = set(
-        Alert.objects
-        .filter(status=Alert.Status.ACTIVE, severity=Alert.Severity.CRITICAL)
-        .values_list('track_section_id', flat=True)
-        .distinct()
-    )
-    warning_section_ids = set(
-        Alert.objects
-        .filter(
-            status=Alert.Status.ACTIVE,
-            severity__in=[Alert.Severity.WARNING, Alert.Severity.INFO],
-        )
-        .values_list('track_section_id', flat=True)
-        .distinct()
-    ) - critical_section_ids
-
-    critical_tracks = len(critical_section_ids)
-    warning_tracks = len(warning_section_ids)
-    healthy_tracks = max(total_tracks - critical_tracks - warning_tracks, 0)
-    active_alerts = Alert.objects.filter(status=Alert.Status.ACTIVE).count()
-    open_tickets = Ticket.objects.exclude(
-        status__in=[Ticket.Status.RESOLVED, Ticket.Status.CLOSED]
-    ).count()
-
-    return {
-        'labels': [
-            'Healthy Tracks',
-            'Warning Tracks',
-            'Critical Tracks',
-            'Active Alerts',
-            'Open Tickets',
-        ],
-        'values': [
-            healthy_tracks,
-            warning_tracks,
-            critical_tracks,
-            active_alerts,
-            open_tickets,
-        ],
-        'total': (
-            healthy_tracks
-            + warning_tracks
-            + critical_tracks
-            + active_alerts
-            + open_tickets
-        ),
-    }
-
-
 def _build_recent_readings():
     """
     Build recent sensor readings list for the dashboard sidebar.
@@ -396,7 +344,6 @@ def dashboard(request):
         'track_sections': track_sections,
         'recent_readings': _build_recent_readings(),
         'sensor_trends_json': _build_sensor_trends(),
-        'system_summary_json': _build_system_summary(),
         'critical_alerts': _build_critical_alerts(),
         'operator_activity': _build_operator_activity(),
     }

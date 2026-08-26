@@ -353,84 +353,6 @@ function initDashboardCharts(data) {
     createCompactChart('strain', 'Strain Gauge Load (kN)', data.strain_gauge_load, 'strain_gauge_load');
 }
 
-function initSystemSummaryChart(summary) {
-    const canvas = document.getElementById('system-summary-chart');
-    if (!canvas || typeof Chart === 'undefined') return;
-
-    const labels = Array.isArray(summary && summary.labels) ? summary.labels : [];
-    const values = Array.isArray(summary && summary.values)
-        ? summary.values.map(value => Number(value) || 0)
-        : [];
-    const total = values.reduce((sum, value) => sum + value, 0);
-    const chartLabels = total > 0 ? labels : ['No records'];
-    const chartValues = total > 0 ? values : [1];
-    const legendValues = total > 0 ? values : [0];
-    const colors = total > 0
-        ? ['#4fbf7a', '#e0c07a', '#f28b8b', '#7fb0ff', '#c9a24a']
-        : ['rgba(168,157,176,0.28)'];
-
-    if (window.rakshakChartInstances.systemSummary) {
-        window.rakshakChartInstances.systemSummary.destroy();
-    }
-
-    window.rakshakChartInstances.systemSummary = new Chart(canvas.getContext('2d'), {
-        type: 'doughnut',
-        data: {
-            labels: chartLabels,
-            datasets: [{
-                data: chartValues,
-                backgroundColor: colors,
-                borderColor: 'rgba(10,8,14,0.82)',
-                borderWidth: 3,
-                hoverOffset: 8,
-            }],
-        },
-        options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            cutout: '66%',
-            plugins: {
-                legend: { display: false },
-                tooltip: {
-                    backgroundColor: 'rgba(20, 19, 16, 0.96)',
-                    titleColor: '#f5f3f7',
-                    bodyColor: '#a89db0',
-                    borderColor: 'rgba(201,162,74,0.22)',
-                    borderWidth: 1,
-                    padding: 12,
-                    cornerRadius: 10,
-                },
-            },
-        },
-    });
-
-    const totalEl = document.getElementById('system-summary-total');
-    if (totalEl) totalEl.textContent = total.toLocaleString('en-IN');
-
-    const legendEl = document.getElementById('system-summary-legend');
-    if (!legendEl) return;
-    legendEl.innerHTML = '';
-
-    chartLabels.forEach((label, index) => {
-        const row = document.createElement('div');
-        row.className = 'summary-legend-row';
-
-        const dot = document.createElement('span');
-        dot.className = 'summary-dot';
-        dot.style.background = colors[index % colors.length];
-
-        const labelEl = document.createElement('span');
-        labelEl.textContent = label;
-
-        const valueEl = document.createElement('b');
-        valueEl.className = 'mono';
-        valueEl.textContent = legendValues[index].toLocaleString('en-IN');
-
-        row.append(dot, labelEl, valueEl);
-        legendEl.appendChild(row);
-    });
-}
-
 // ====================================================================
 // THEME-AWARE HELPERS
 // ====================================================================
@@ -448,10 +370,6 @@ window.addEventListener('themeChanged', function(e) {
         Object.values(window.rakshakChartInstances).forEach(chart => chart.destroy());
         window.rakshakChartInstances = {};
         initDashboardCharts(JSON.parse(trendsEl.textContent));
-        var summaryEl = document.getElementById('system-summary-data');
-        if (summaryEl) {
-            initSystemSummaryChart(JSON.parse(summaryEl.textContent));
-        }
     }
 });
 
@@ -495,13 +413,185 @@ function initSidebar() {
 }
 
 // ====================================================================
+// NETWORK MAP OVERVIEW (dashboard)
+// Lightweight Leaflet map reusing the existing /api/stations and
+// /api/routes endpoints. Loads once on dashboard init, no live polling.
+// ====================================================================
+var RAKSHAK_DASHBOARD_MAP_COLORS = {
+    healthy: '#4fbf7a',
+    warning: '#e0c07a',
+    critical: '#f28b8b',
+    routeDefault: '#9aa4b2',
+};
+
+function _rakshakEscape(str) {
+    return String(str == null ? '' : str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+}
+
+function _rakshakFmtStatus(value) {
+    if (!value) return 'N/A';
+    return String(value).replace(/_/g, ' ').replace(/\b\w/g, function (c) {
+        return c.toUpperCase();
+    });
+}
+
+function _rakshakStatusClass(status) {
+    if (status === 'critical') return 'crit';
+    if (status === 'warning') return 'warn';
+    return 'good';
+}
+
+function _renderDashboardSelection(payload) {
+    var el = document.getElementById('dashboard-map-selection');
+    if (!el) return;
+    if (!payload) {
+        el.innerHTML = '<span class="network-selection-label">Select a station or track</span>';
+        return;
+    }
+    var statusCls = _rakshakStatusClass(payload.status);
+    var parts = [
+        '<span class="network-selection-status ' + statusCls + '">' + _rakshakEscape(_rakshakFmtStatus(payload.status)) + '</span>',
+        '<span class="network-selection-title">' + _rakshakEscape(payload.title) + '</span>',
+    ];
+    if (payload.meta) {
+        parts.push('<span class="network-selection-meta">' + _rakshakEscape(payload.meta) + '</span>');
+    }
+    el.innerHTML = parts.join('');
+}
+
+function initDashboardMap() {
+    var mapEl = document.getElementById('dashboard-map');
+    if (!mapEl || typeof L === 'undefined') return;
+    if (mapEl.dataset.mapInitialized === '1') return;
+    mapEl.dataset.mapInitialized = '1';
+
+    var mapEndpoint = mapEl.getAttribute('data-map-endpoint') || '';
+
+    var map = L.map(mapEl, {
+        center: [22.5, 79.0],
+        zoom: 4,
+        minZoom: 3,
+        maxZoom: 10,
+        zoomControl: false,
+        attributionControl: false,
+        preferCanvas: true,
+        scrollWheelZoom: false,
+    });
+
+    L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
+        subdomains: 'abcd',
+        maxZoom: 20,
+    }).addTo(map);
+
+    var routesLayer = L.layerGroup().addTo(map);
+    var stationsLayer = L.layerGroup().addTo(map);
+
+    function fetchJson(url) {
+        return fetch(url, { credentials: 'same-origin' }).then(function (r) {
+            if (!r.ok) throw new Error(url + ' HTTP ' + r.status);
+            return r.json();
+        });
+    }
+
+    Promise.all([
+        fetchJson('/api/stations/'),
+        fetchJson('/api/routes/'),
+    ]).then(function (results) {
+        var stations = results[0] || [];
+        var routes = (results[1] || []).filter(function (r) {
+            return Array.isArray(r.coordinates) && r.coordinates.length >= 2;
+        });
+
+        var allPoints = [];
+
+        routes.forEach(function (route) {
+            var status = route.status || 'healthy';
+            var color = RAKSHAK_DASHBOARD_MAP_COLORS[status] || RAKSHAK_DASHBOARD_MAP_COLORS.routeDefault;
+            var line = L.polyline(route.coordinates, {
+                color: color,
+                weight: status === 'critical' ? 3.4 : 2.4,
+                opacity: status === 'healthy' ? 0.68 : 0.9,
+                dashArray: status === 'healthy' ? null : '6, 6',
+                lineCap: 'round',
+                lineJoin: 'round',
+            });
+            line.on('click', function () {
+                _renderDashboardSelection({
+                    title: route.name || route.id || 'Track section',
+                    status: status,
+                    meta: (route.source || '') + (route.destination ? ' → ' + route.destination : ''),
+                });
+            });
+            line.on('dblclick', function () {
+                if (mapEndpoint) {
+                    window.location.href = mapEndpoint + '?focus_route=' + encodeURIComponent(route.id || '');
+                }
+            });
+            routesLayer.addLayer(line);
+            route.coordinates.forEach(function (pt) { allPoints.push(pt); });
+        });
+
+        stations.forEach(function (station) {
+            if (typeof station.lat !== 'number' || typeof station.lng !== 'number') return;
+            var status = station.status || 'healthy';
+            var color = RAKSHAK_DASHBOARD_MAP_COLORS[status] || RAKSHAK_DASHBOARD_MAP_COLORS.healthy;
+            var marker = L.circleMarker([station.lat, station.lng], {
+                radius: station.is_junction ? 5.5 : 4,
+                color: '#f5f3f7',
+                weight: 1.1,
+                fillColor: color,
+                fillOpacity: 0.92,
+            });
+            marker.on('click', function () {
+                _renderDashboardSelection({
+                    title: station.name || station.code || 'Station',
+                    status: status,
+                    meta: station.code ? station.code + (station.zone ? ' · ' + station.zone : '') : (station.zone || ''),
+                });
+            });
+            marker.on('dblclick', function () {
+                if (mapEndpoint) {
+                    window.location.href = mapEndpoint + '?focus_station=' + encodeURIComponent(station.code || '');
+                }
+            });
+            stationsLayer.addLayer(marker);
+            allPoints.push([station.lat, station.lng]);
+        });
+
+        if (allPoints.length) {
+            try {
+                map.fitBounds(L.latLngBounds(allPoints), { padding: [16, 16], maxZoom: 6 });
+            } catch (e) {
+                map.setView([22.5, 79.0], 4);
+            }
+        }
+
+        window.setTimeout(function () { map.invalidateSize(); }, 60);
+    }).catch(function () {
+        var overlay = document.createElement('div');
+        overlay.className = 'network-overview-empty';
+        overlay.textContent = 'Network map data unavailable.';
+        mapEl.appendChild(overlay);
+    });
+
+    window.addEventListener('resize', function () {
+        if (map) map.invalidateSize();
+    });
+}
+
+// ====================================================================
 // INITIALIZE ON DOM READY
 // ====================================================================
 document.addEventListener('DOMContentLoaded', function () {
     initLiveClock();
     animateCounters();
     initSidebar();
-    
+
     // Dashboard charts
     var trendsEl = document.getElementById('sensor-trends-data');
     if (trendsEl) {
@@ -509,10 +599,9 @@ document.addEventListener('DOMContentLoaded', function () {
         initDashboardCharts(trendData);
     }
 
-    var summaryEl = document.getElementById('system-summary-data');
-    if (summaryEl) {
-        var summaryData = JSON.parse(summaryEl.textContent);
-        initSystemSummaryChart(summaryData);
+    // Dashboard network overview map
+    if (document.getElementById('dashboard-map')) {
+        initDashboardMap();
     }
 });
 
