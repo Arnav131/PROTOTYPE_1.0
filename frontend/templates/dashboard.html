@@ -46,34 +46,32 @@
 </div>
 
 <div class="row-2col">
-    <div class="card system-summary-card">
+    <div class="card network-overview-card">
         <div class="card-header">
-            <div>
-                <h3 class="card-title">System Summary</h3>
-                <p class="card-sub">Live health mix</p>
-            </div>
-            <span class="summary-source-pill"><span class="dot good"></span>Backend data</span>
+            <div><h3 class="card-title">Network Map</h3><p class="card-sub">Live railway topology and track health</p></div>
+            <a class="card-link" href="{% url 'map_view:map' %}" id="dashboard-map-fullscreen">View Full Map &rarr;</a>
         </div>
-        <div class="system-summary-layout">
-            <div class="summary-chart-wrap">
-                <canvas id="system-summary-chart"></canvas>
-                <div class="summary-chart-center">
-                    <b class="mono" id="system-summary-total">{{ system_summary_json.total|default:0 }}</b>
-                    <span>signals</span>
+        <div class="network-overview-body">
+            <div class="network-overview-map" id="dashboard-map" data-map-endpoint="{% url 'map_view:map' %}" aria-label="Network overview map"></div>
+            <div class="network-overview-footer">
+                <div class="network-legend" aria-label="Track health legend">
+                    <span class="network-legend-item"><span class="network-legend-dot good"></span>Healthy</span>
+                    <span class="network-legend-item"><span class="network-legend-dot warn"></span>Caution</span>
+                    <span class="network-legend-item"><span class="network-legend-dot crit"></span>Critical</span>
                 </div>
-            </div>
-            <div class="summary-legend" id="system-summary-legend">
-                <div class="summary-legend-empty">Loading summary...</div>
+                <div class="network-overview-selection" id="dashboard-map-selection">
+                    <span class="network-selection-label">Select a station or track</span>
+                </div>
             </div>
         </div>
     </div>
 
-    <div class="card">
+    <div class="card critical-alerts-card">
         <div class="card-header">
-            <h3 class="card-title">Critical Alerts</h3>
+            <div><h3 class="card-title">Critical Alerts</h3><p class="card-sub">Highest priority active incidents</p></div>
             <a class="card-link" href="{% url 'alerts:alerts' %}?status=active">Open alerts</a>
         </div>
-        <div class="alert-list">
+        <div class="alert-list dashboard-scroll-panel">
             {% for alert in critical_alerts %}
             <div class="alert-item {{ alert.severity }}">
                 <div class="alert-head">
@@ -191,5 +189,4 @@
 </div>
 
 {{ sensor_trends_json|json_script:"sensor-trends-data" }}
-{{ system_summary_json|json_script:"system-summary-data" }}
 {% endblock %}

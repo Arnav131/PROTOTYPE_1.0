@@ -113,6 +113,7 @@ function initRakshakControlMap() {
         updateDefaultInspector(rakshakMapState);
         fitIndia(rakshakMapState);
         refreshTrains(rakshakMapState);
+        focusRequestedFromUrl(rakshakMapState);
 
         // Start continuous live polling so trains visibly move along tracks
         if (window._rakshakTrainInterval) clearInterval(window._rakshakTrainInterval);
@@ -503,6 +504,43 @@ function focusRequestedAlert(state) {
     var marker = state.alertMarkers[focusAlert];
     state.map.setView(marker.getLatLng(), 12);
     marker.openPopup();
+}
+
+function focusRequestedFromUrl(state) {
+    var params = new URLSearchParams(window.location.search);
+
+    var focusAlert = params.get("focus_alert");
+    if (focusAlert && state.alertMarkers[focusAlert]) {
+        var alertMarker = state.alertMarkers[focusAlert];
+        state.map.setView(alertMarker.getLatLng(), 12);
+        alertMarker.openPopup();
+        return;
+    }
+
+    var focusStation = params.get("focus_station");
+    if (focusStation) {
+        var station = state.data.stations.find(function (s) {
+            return s && (s.code === focusStation);
+        });
+        if (station && isFiniteNumber(station.lat) && isFiniteNumber(station.lng)) {
+            state.map.setView([station.lat, station.lng], 10);
+            updateInspector(stationInspector(station));
+            return;
+        }
+    }
+
+    var focusRoute = params.get("focus_route");
+    if (focusRoute) {
+        var route = state.data.routes.find(function (r) {
+            return r && (r.id === focusRoute || r.name === focusRoute);
+        });
+        if (route && Array.isArray(route.coordinates) && route.coordinates.length) {
+            try {
+                state.map.fitBounds(L.latLngBounds(route.coordinates), { padding: [40, 40], maxZoom: 10 });
+            } catch (e) { /* ignore */ }
+            updateInspector(routeInspector(route));
+        }
+    }
 }
 
 function fitIndia(state) {
