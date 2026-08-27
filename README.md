@@ -16,49 +16,49 @@ Built on a Django backend with server-rendered templates, interactive Leaflet-ba
 
 ### Operations Dashboard
 
-![Rakshak Dashboard](docs/images/dashboard.png)
+![Rakshak Dashboard](docs/images/dashboard.jpg)
 
 The main control center surfaces five KPI cards (overall health, active alerts, open tickets, predicted failures, tracks monitored), four real-time sensor trend charts with threshold-based color coding, a Leaflet network overview map with station and route health, a critical alerts panel, and an operator activity log.
 
 ### Network Map
 
-![Rakshak Network Map](docs/images/network-map.png)
+![Rakshak Network Map](docs/images/network-map.jpg)
 
 A full-page interactive Leaflet map displaying the railway network with color-coded station markers (by health status), route polylines (by track condition), maintenance ticket locations, active alert markers with pulse animations, and simulated live train positions. Supports layer toggling, search filtering, dark/light themes, and route detail selection.
 
 ### Operational Readiness
 
-![Rakshak Operational Readiness](docs/images/readiness.png)
+![Rakshak Operational Readiness](docs/images/readiness.jpg)
 
 A flight-deck-inspired readiness control center with a tabbed track workspace (drag-and-drop, pin, close), departure gate status annunciators, split-view case comparison, sensor telemetry meter displays, field checklist sign-off, controller Go/Caution/No-Go decisions with override capability, and an immutable audit timeline.
 
 ### Alerts Center
 
-![Rakshak Alerts](docs/images/alerts.png)
+![Rakshak Alerts](docs/images/alerts.jpg)
 
 Filterable alert management with severity summary cards (critical, warning, info), status tabs (live, acknowledged, resolved), severity filter chips, and detailed alert cards showing track section, zone, sensor identity, confidence score, and time-ago information.
 
 ### Tickets Desk
 
-![Rakshak Tickets](docs/images/tickets.png)
+![Rakshak Tickets](docs/images/tickets.jpg)
 
 Maintenance ticket management with status filters, full-text search, summary KPIs (total, critical priority, assigned teams, in-progress, resolved), and a detailed ticket table with priority, team assignment, ETA, cost tracking, and linked alerts.
 
 ### Live Simulation
 
-![Rakshak Simulation](docs/images/simulation.png)
+*Screenshot pending.*
 
 A staff-only simulation environment where operators select source/destination stations and track conditions, view a real route preview on a Leaflet map, watch a terminal-style train animation, and receive live AI predictions from freshly generated synthetic IoT sensor data — with alert level, fault classification, and actionable suggestions.
 
 ### Patrol Inspection
 
-![Rakshak Patrol Inspection](docs/images/patrol.png)
+*Screenshot pending.*
 
 Worker patrol interface for on-ground track inspection following RDSO standards, with 8 inspection category sliders (1–5 scale), quick condition presets, and automated IoT telemetry generation upon submission for ground-truth vs. predictive comparison.
 
 ### Patrol Review
 
-![Rakshak Patrol Review](docs/images/patrol-review.png)
+![Rakshak Patrol Review](docs/images/patrol-review.jpg)
 
 Controller dashboard for reviewing patrol submissions, comparing worker scores against IoT-predicted telemetry, adjusting worker/IoT weight contributions via sliders, viewing Chart.js IoT reading charts, and issuing Go/Restrict/Block operational decisions with auto-refresh polling.
 
