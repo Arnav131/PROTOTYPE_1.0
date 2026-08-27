@@ -31,6 +31,7 @@ var RAKSHAK_TICKET_COLORS = {
 };
 
 var rakshakMapState = null;
+var _rakshakHoverTimer = null;
 
 function initRakshakControlMap() {
     var mapEl = document.getElementById("railway-map");
@@ -136,10 +137,6 @@ function initRakshakControlMap() {
     });
 }
 
-// Backwards-compatible alias for older templates.
-function initRailwayMapFromAPI() {
-    initRakshakControlMap();
-}
 
 function fetchJson(url) {
     return fetch(url, { credentials: "same-origin" }).then(function (response) {
@@ -252,9 +249,13 @@ function renderRoutes(state) {
         });
 
         line.on("mouseover", function () {
-            line.setStyle({ weight: 5.5, opacity: 0.96 });
+            clearTimeout(_rakshakHoverTimer);
+            _rakshakHoverTimer = setTimeout(function() {
+                line.setStyle({ weight: 5.5, opacity: 0.96 });
+            }, 40);
         });
         line.on("mouseout", function () {
+            clearTimeout(_rakshakHoverTimer);
             if (state.selectedRoute !== line) {
                 line.setStyle({
                     weight: route.status === "critical" ? 4.4 : 3.1,
@@ -496,15 +497,6 @@ function focusZone(state, zoneName) {
     state.map.fitBounds(L.latLngBounds(points), { padding: [36, 36], maxZoom: 8 });
 }
 
-function focusRequestedAlert(state) {
-    var params = new URLSearchParams(window.location.search);
-    var focusAlert = params.get("focus_alert");
-    if (!focusAlert || !state.alertMarkers[focusAlert]) return;
-
-    var marker = state.alertMarkers[focusAlert];
-    state.map.setView(marker.getLatLng(), 12);
-    marker.openPopup();
-}
 
 function focusRequestedFromUrl(state) {
     var params = new URLSearchParams(window.location.search);
