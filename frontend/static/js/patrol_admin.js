@@ -8,6 +8,8 @@ let selectedPatrolCode = null;
 let currentPatrol = null;
 let chartInstances = {};
 let selectedDecision = null;
+let _searchDebounceTimer = null;
+let _patrolDetailCache = {};
 
 function escapeHtml(str) {
     if (str === null || str === undefined) return '';
@@ -62,7 +64,12 @@ function initEventListeners() {
     // Search and Filter
     const searchInput = document.getElementById('admin-search-patrol');
     if (searchInput) {
-        searchInput.addEventListener('input', renderPatrolsTable);
+        searchInput.addEventListener('input', function() {
+            clearTimeout(_searchDebounceTimer);
+            _searchDebounceTimer = setTimeout(function() {
+                renderPatrolsTable();
+            }, 200);
+        });
     }
 
     const filterSelect = document.getElementById('admin-filter-status');
@@ -200,11 +207,18 @@ async function openPatrolDetail(patrolCode) {
     selectedPatrolCode = patrolCode;
     renderPatrolsTable();
 
+    if (_patrolDetailCache[patrolCode]) {
+        currentPatrol = _patrolDetailCache[patrolCode];
+        renderDetailView(currentPatrol);
+        return;
+    }
+
     try {
         const resp = await fetch(`/api/patrol/${patrolCode}/`);
         const data = await resp.json();
         if (data.status === 'success' && data.patrol) {
             currentPatrol = data.patrol;
+            _patrolDetailCache[patrolCode] = data.patrol;
             renderDetailView(currentPatrol);
         }
     } catch (err) {
@@ -429,6 +443,7 @@ async function saveWeights() {
 
         const data = await resp.json();
         if (data.status === 'success' && data.patrol) {
+            delete _patrolDetailCache[selectedPatrolCode];
             currentPatrol = data.patrol;
             renderDetailView(currentPatrol);
             fetchPatrols();
@@ -500,6 +515,7 @@ async function submitDecision() {
 
         const data = await resp.json();
         if (data.status === 'success') {
+            delete _patrolDetailCache[selectedPatrolCode];
             alert(`Decision recorded successfully: ${selectedDecision.toUpperCase()}`);
             currentPatrol = data.patrol;
             renderDetailView(currentPatrol);

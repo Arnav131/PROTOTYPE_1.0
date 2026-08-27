@@ -42,8 +42,15 @@ body {
   font-size: 14px;
   -webkit-font-smoothing: antialiased;
   background:
-    linear-gradient(180deg, rgba(10, 8, 14, 0.72), rgba(10, 8, 14, 0.86)),
-    url("../images/bg-station.png") center/cover no-repeat fixed;
+    linear-gradient(180deg, rgba(10, 8, 14, 0.72), rgba(10, 8, 14, 0.86));
+}
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: -2;
+  background: url("../images/bg-station.jpg") center/cover no-repeat;
+  pointer-events: none;
 }
 a { color: var(--gold-soft); text-decoration: none; }
 a:hover { color: var(--gold); }
@@ -66,7 +73,6 @@ a:hover { color: var(--gold); }
   background:
     radial-gradient(600px 400px at 82% 8%, rgba(201,162,74,0.14), transparent 60%),
     radial-gradient(500px 500px at 12% 92%, rgba(16,137,79,0.12), transparent 60%);
-  filter: blur(20px);
 }
 .app-sidebar,
 .app-content-wrapper { position: relative; z-index: 1; min-width: 0; }
@@ -312,8 +318,7 @@ a:hover { color: var(--gold); }
   background: #d9d7cd;
   font-family: var(--font-body);
 }
-.network-overview-map[data-map-theme="dark"] .leaflet-tile,
-.network-overview-map .leaflet-tile {
+.network-overview-map .leaflet-tile-pane {
   filter: brightness(0.78) saturate(0.68) contrast(0.94) sepia(0.06);
 }
 .network-overview-empty {
@@ -402,10 +407,9 @@ a:hover { color: var(--gold); }
 }
 .alert-list { display: flex; flex-direction: column; gap: 10px; }
 .alert-item {
-  background: rgba(255,255,255,0.04);
+  background: rgba(255,255,255,0.08);
   border: 1px solid var(--border-glass);
   border-left-width: 3px; border-radius: 14px; padding: 12px 14px;
-  backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
 }
 .alert-item.crit { border-left-color: var(--red); }
 .alert-item.high { border-left-color: var(--gold-soft); }
@@ -429,10 +433,9 @@ a:hover { color: var(--gold); }
 .telemetry-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
 @media (max-width: 900px) { .telemetry-grid { grid-template-columns: 1fr; } }
 .telemetry-tile {
-  background: rgba(255,255,255,0.04);
+  background: rgba(255,255,255,0.08);
   border: 1px solid var(--border-glass);
   border-radius: 16px; padding: 14px;
-  backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
 }
 .telemetry-head { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 10px; }
 .telemetry-name { font-size: 12px; color: var(--text-secondary); font-weight: 500; }

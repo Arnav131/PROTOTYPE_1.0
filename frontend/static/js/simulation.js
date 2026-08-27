@@ -21,6 +21,7 @@
 
     var chartInstance = null;
     var animationTimer = null;
+    var _routeDebounceTimer = null;
     var MIN_ANIMATION_MS = 5000;   // journey animation always takes at least this long,
                                     // even if the backend responds faster — keeps the
                                     // demo feeling like a real journey, not an instant API call
@@ -54,8 +55,14 @@
                     datalist.appendChild(opt);
                 });
                 document.getElementById('sim-source').placeholder = 'e.g. ' + data.stations[0].name;
-                document.getElementById('sim-destination').addEventListener('input', maybeDrawRoute);
-                document.getElementById('sim-source').addEventListener('input', maybeDrawRoute);
+                document.getElementById('sim-destination').addEventListener('input', function() {
+                    clearTimeout(_routeDebounceTimer);
+                    _routeDebounceTimer = setTimeout(function() { maybeDrawRoute(); }, 300);
+                });
+                document.getElementById('sim-source').addEventListener('input', function() {
+                    clearTimeout(_routeDebounceTimer);
+                    _routeDebounceTimer = setTimeout(function() { maybeDrawRoute(); }, 300);
+                });
             })
             .catch(function () { /* datalist stays empty; free-text still works */ });
     }
