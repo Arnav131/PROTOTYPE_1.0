@@ -44,18 +44,6 @@ Filterable alert management with severity summary cards (critical, warning, info
 
 Maintenance ticket management with status filters, full-text search, summary KPIs (total, critical priority, assigned teams, in-progress, resolved), and a detailed ticket table with priority, team assignment, ETA, cost tracking, and linked alerts.
 
-### Live Simulation
-
-*Screenshot pending.*
-
-A staff-only simulation environment where operators select source/destination stations and track conditions, view a real route preview on a Leaflet map, watch a terminal-style train animation, and receive live AI predictions from freshly generated synthetic IoT sensor data — with alert level, fault classification, and actionable suggestions.
-
-### Patrol Inspection
-
-*Screenshot pending.*
-
-Worker patrol interface for on-ground track inspection following RDSO standards, with 8 inspection category sliders (1–5 scale), quick condition presets, and automated IoT telemetry generation upon submission for ground-truth vs. predictive comparison.
-
 ### Patrol Review
 
 ![Rakshak Patrol Review](docs/images/patrol-review.jpg)
